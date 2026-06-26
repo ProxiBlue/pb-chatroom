@@ -17,7 +17,12 @@ services:
   mcp:
     build: ./mcp
     ports:
-      - "127.0.0.1:7477:7477"
+      # MCP must be reachable from DDEV containers via host.docker.internal,
+      # which resolves to the host's docker-bridge gateway IP — NOT loopback.
+      # Binding 127.0.0.1 here would refuse all cross-container traffic.
+      # Bind all interfaces; isolation relies on the workstation's own
+      # firewall (single-user dev box, behind NAT).
+      - "7477:7477"
     environment:
       PB_CHATROOM_SERVER_URL: http://server:7476
     depends_on:

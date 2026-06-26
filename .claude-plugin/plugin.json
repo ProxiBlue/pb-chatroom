@@ -1,6 +1,6 @@
 {
   "name": "pb-chatroom",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Self-hosted multi-Claude coordination chatroom — Python FastAPI + SQLite backend bound to 127.0.0.1, MCP tools for Claude sessions (and their subagents) to send/read threaded messages, slash commands for human-facing UX, optional graphiti archival of closed threads. All data local; no external network calls.",
   "userConfig": {
     "chatroom_url": {
