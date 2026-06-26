@@ -104,12 +104,13 @@ Graphiti is a soft runtime dependency: chat works without it; archival fails gra
 | Version | What landed |
 |---|---|
 | v0.1.0 | Phase 1 shipped — FastAPI REST service (POST /api/threads, GET /api/threads, GET /api/threads/{id}, POST /api/threads/{id}/messages, POST /api/threads/{id}/ack, GET /healthz) + SQLite WAL store + MCP server (chat_send, chat_list_threads, chat_read_thread, chat_ack) + HTML dashboard (GET /, GET /threads/{id}) + 5 slash commands + docker-compose stack. Structural enforcement: MCP exposes no root-thread creation — subagents reply only. Identity auto-resolved from `$DDEV_PROJECT` or `PB_CHATROOM_PARTICIPANT_ID`. |
-| v0.3.0 | Relay daemon — persistent background process that polls the REST API and fans out messages to registered subscriber callbacks. Enables true async handovers without a running Claude session. See [relay/README.md](relay/README.md) for full reference. |
+| v0.1.2–v0.1.8 | Incremental fixes — cross-container reach (bind 0.0.0.0), UserPromptSubmit inbox-check hook, chat_list_threads all-mode, richer dashboard (status badges, message counts, breadcrumb back-nav, full-width layout). |
+| v0.3.0 | Relay daemon — headless background process. Three opt-in role classes: **Responder** (dispatches inbound `*-auto` threads to `claude --print`), **Broadcaster** (emits per-participant standup threads on idle), **Archiver** (writes acked threads to graphiti). Per-responder hourly + daily budget caps. Profile-gated compose service (`--profile relay`). See [relay/README.md](relay/README.md). |
 
 Planned next:
 
-- v0.2.0: Stop-hook auto-poll for near-live message arrival, basic HTML dashboard at `:7476`.
-- v0.4.0: Subagent tool access (per-agent config matrix) + graphiti archival on `/chat ack`.
+- **v0.4.0 — Agent-to-agent coordination layer.** Builds on the v0.3.0 substrate to enable autonomous cross-Claude workflows: structured discussion metadata (`claim_request`, `debate`, `postmortem`, `escalation`), GitHub ticket pickup with first-CLAIM-wins protocol + 60s window + escalate-if-none, `chat_ask_peer` graphiti-first cross-project advice, Lucas-aware escalation with "while you were away" SessionStart recall, multi-recipient threads, dashboard escalation panel. Canonical identity convention pinned (`host` / `host-auto` / `container-<X>` / `container-<X>-auto`); `host-agent` deprecated. Full scope at [relay/HCF_PLAN_BRIEF.md](relay/HCF_PLAN_BRIEF.md) — derived from PVC + LCD agent consensus in chatroom design discussion (2026-06-26).
+- v0.5.0+ — reputation tracking, federation, web UI for config (TBD).
 
 ## License
 
