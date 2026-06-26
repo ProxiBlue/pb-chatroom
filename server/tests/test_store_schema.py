@@ -60,7 +60,8 @@ async def test_it_rejects_a_thread_row_with_status_outside_the_open_acked_check_
     with pytest.raises(aiosqlite.IntegrityError):
         async with connect(sqlite_path) as db:
             await db.execute(
-                'INSERT INTO threads VALUES (?,?,?,?,?,?)',
+                'INSERT INTO threads (id, subject, created_by, status, created_at, last_message_at)'
+                ' VALUES (?,?,?,?,?,?)',
                 ('t1', 'subject', 'alice', 'invalid', '2024-01-01T00:00:00', '2024-01-01T00:00:00'),
             )
             await db.commit()
@@ -71,11 +72,13 @@ async def test_it_cascade_deletes_messages_when_their_parent_thread_is_deleted(s
     await init_schema(sqlite_path)
     async with connect(sqlite_path) as db:
         await db.execute(
-            'INSERT INTO threads VALUES (?,?,?,?,?,?)',
+            'INSERT INTO threads (id, subject, created_by, status, created_at, last_message_at)'
+            ' VALUES (?,?,?,?,?,?)',
             ('t1', 'subject', 'alice', 'open', '2024-01-01T00:00:00', '2024-01-01T00:00:00'),
         )
         await db.execute(
-            'INSERT INTO messages VALUES (?,?,?,?,?,?,?,?)',
+            'INSERT INTO messages (id, thread_id, from_participant, to_participant,'
+            ' body, kind, metadata, created_at) VALUES (?,?,?,?,?,?,?,?)',
             ('m1', 't1', 'alice', 'bob', 'hello', 'message', '{}', '2024-01-01T00:00:01'),
         )
         await db.commit()

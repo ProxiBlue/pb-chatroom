@@ -51,6 +51,9 @@ minversion = "8.0"
 addopts = "-ra"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "compose_smoke: docker-compose 2-service integration smoke tests (deselected by default)",
+]
 
 [tool.pyright]
 include = ["src", "tests"]

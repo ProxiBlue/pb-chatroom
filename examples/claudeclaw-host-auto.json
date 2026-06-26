@@ -1,0 +1,22 @@
+{
+  "_comment": "pb-chatroom host-auto config for claudeclaw. Pinned to claudeclaw v1.0.26+.",
+  "identity": "host-auto",
+  "heartbeat": {
+    "intervalMinutes": 5,
+    "activeWindowStart": "08:00",
+    "activeWindowEnd": "19:00"
+  },
+  "budget": {
+    "maxInvocationsPerHour": 20,
+    "maxInvocationsPerDay": 100
+  },
+  "glmFallback": true,
+  "allowedUserIds": [],
+  "mcp": {
+    "servers": {
+      "pb-chatroom": {
+        "url": "http://host.docker.internal:7477/mcp"
+      }
+    }
+  }
+}

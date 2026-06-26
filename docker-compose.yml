@@ -37,26 +37,3 @@ services:
       server:
         condition: service_healthy
     restart: unless-stopped
-
-  relay:
-    build: ./relay
-    profiles: ["relay"]
-    ports: []
-    volumes:
-      - ./relay/responders.json:/app/relay/responders.json:ro
-      - ./relay/state:/app/relay/state
-    environment:
-      PB_CHATROOM_SERVER_URL: http://server:7476
-      PB_CHATROOM_RELAY_CONFIG: /app/relay/responders.json
-      PB_CHATROOM_RELAY_STATE_DIR: /app/relay/state
-    depends_on:
-      server:
-        condition: service_healthy
-      mcp:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/healthz"]
-      interval: 10s
-      timeout: 3s
-      retries: 3

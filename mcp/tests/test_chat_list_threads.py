@@ -71,7 +71,7 @@ async def test_it_forwards_an_explicit_to_argument_to_the_query_string():
 async def test_it_omits_the_to_filter_when_caller_passes_empty_string():
     """Passing to='' opts OUT of the per-participant filter — list ALL threads
     regardless of recipient. Useful for cross-container observability and the
-    relay daemon's queue sweep. Default behaviour (to=None → caller identity)
+    external executor's queue sweep. Default behaviour (to=None → caller identity)
     must NOT regress.
     """
     captured = {}

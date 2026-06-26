@@ -4,8 +4,22 @@ from __future__ import annotations
 
 import httpx
 
+ALLOWED_DISCUSSION_TYPES = (
+    'claim_request',
+    'claim_accepted',
+    'design_question',
+    'debate',
+    'postmortem',
+    'escalation',
+)
 
-async def chat_send(thread_id: str, body: str, client: httpx.AsyncClient) -> object:
+
+async def chat_send(
+    thread_id: str,
+    body: str,
+    client: httpx.AsyncClient,
+    discussion_type: str | None = None,
+) -> object:
     """Post a message to thread_id. thread_id is structurally required."""
     if not thread_id:
         return (
@@ -16,10 +30,17 @@ async def chat_send(thread_id: str, body: str, client: httpx.AsyncClient) -> obj
     if not body:
         return 'body is required'
 
+    if discussion_type is not None and discussion_type not in ALLOWED_DISCUSSION_TYPES:
+        return f'invalid discussion_type: {discussion_type!r}'
+
+    payload: dict = {'body': body}
+    if discussion_type is not None:
+        payload['discussion_type'] = discussion_type
+
     try:
         response = await client.post(
             f'/api/threads/{thread_id}/messages',
-            json={'body': body},
+            json=payload,
         )
     except httpx.ConnectError:
         return f'server unreachable at {client.base_url} — is pb-chatroom-server running?'

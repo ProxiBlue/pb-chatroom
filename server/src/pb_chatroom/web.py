@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+from .store.messages import has_legacy_identity_in_last_n_days
 from .store.threads import get_thread_with_messages, list_threads
 
 templates = Jinja2Templates(directory=Path(__file__).parent / 'templates')
@@ -24,8 +25,24 @@ def _base_context(request: Request) -> dict:
 async def threads_list(request: Request) -> HTMLResponse:
     db_path = request.app.state.settings.db_path
     threads = await list_threads(db_path)
+    show_legacy_warning = await has_legacy_identity_in_last_n_days(db_path)
+
+    escalations = await list_threads(db_path, discussion_types=['escalation'], status='open')
+    postmortems = await list_threads(db_path, discussion_types=['postmortem'], status='open')
+    open_threads = await list_threads(db_path, status='open')
+    active_claims = [t for t in open_threads if t.get('claimed_by')]
+
     return templates.TemplateResponse(
-        request, 'threads_list.html', {**_base_context(request), 'threads': threads}
+        request,
+        'threads_list.html',
+        {
+            **_base_context(request),
+            'threads': threads,
+            'show_legacy_warning': show_legacy_warning,
+            'escalation_count': len(escalations),
+            'postmortem_count': len(postmortems),
+            'active_claims': active_claims,
+        },
     )
 
 

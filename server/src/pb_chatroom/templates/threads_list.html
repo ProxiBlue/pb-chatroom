@@ -1,5 +1,34 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="panel">
+  <div class="panel-item {% if escalation_count > 0 %}panel-alert{% endif %}">
+    <a href="/?discussion_types=escalation&amp;status=open">{{ escalation_count }} escalation(s) open</a>
+  </div>
+  <div class="panel-item">
+    <a href="/?discussion_types=postmortem&amp;status=open">{{ postmortem_count }} postmortem(s) waiting</a>
+  </div>
+  <div class="panel-item">
+    {{ active_claims|length }} active CLAIM(s)
+    {% for c in active_claims %}
+      &mdash; {{ c.claimed_by }} since {{ c.claimed_at }}
+    {% endfor %}
+  </div>
+</div>
+<style>
+  .panel { display: flex; gap: 2rem; background: #f8f9fa; border: 1px solid #dee2e6;
+            border-radius: 4px; padding: 0.75rem 1rem; margin-bottom: 1rem; }
+  .panel-item { flex: 1; }
+  .panel-alert a { color: #dc3545; font-weight: 700; }
+</style>
+{% if show_legacy_warning %}
+<div class="legacy-warning">
+  <strong>Deprecated identity 'host-agent' in use</strong> — migrate to 'host' or 'host-auto'. See relay/README.md.
+</div>
+<style>
+  .legacy-warning { background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;
+                    padding: 0.6rem 1rem; margin-bottom: 1rem; font-size: 0.9em; }
+</style>
+{% endif %}
 <h2>Threads</h2>
 {% if threads %}
 <table class="threads-table">
