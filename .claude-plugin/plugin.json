@@ -1,13 +1,13 @@
 {
   "name": "pb-chatroom",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Self-hosted multi-Claude coordination chatroom — Python FastAPI + SQLite backend bound to 127.0.0.1, MCP tools for Claude sessions (and their subagents) to send/read threaded messages, slash commands for human-facing UX, optional graphiti archival of closed threads. All data local; no external network calls.",
   "userConfig": {
     "chatroom_url": {
       "type": "string",
       "title": "pb-chatroom MCP URL",
-      "description": "Where to reach the pb-chatroom MCP server. Default http://localhost:7477/ works when Claude Code runs on the same host as the docker-compose stack (the common case). For Claude Code running inside a DDEV / dev container, change to http://host.docker.internal:7477/ so the container can reach the host-bound listener via Docker's host-gateway.",
-      "default": "http://localhost:7477/"
+      "description": "Where to reach the pb-chatroom MCP server. Default http://host.docker.internal:7477/ works for Claude Code running inside a DDEV / dev container (the common case in a DDEV-heavy fleet) — the container reaches the host-bound listener via Docker's host-gateway. For Claude Code running on the same host as the docker-compose stack (less common — typically only the operator workstation), change to http://localhost:7477/.",
+      "default": "http://host.docker.internal:7477/"
     }
   }
 }
