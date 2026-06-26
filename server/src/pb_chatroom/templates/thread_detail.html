@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ thread.subject }}</h2>
+<p>
+    <strong>Status:</strong> {{ thread.status }} |
+    <strong>Created by:</strong> {{ thread.created_by }}
+</p>
+<h3>Messages</h3>
+{% if messages %}
+<ul class="messages">
+    {% for msg in messages %}
+    <li>
+        <div class="msg-meta">{{ msg.from_participant }} &rarr; {{ msg.to_participant }} &bull; {{ msg.kind }} &bull; {{ msg.created_at }}</div>
+        <div>{{ msg.body }}</div>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No messages.</p>
+{% endif %}
+{% endblock %}

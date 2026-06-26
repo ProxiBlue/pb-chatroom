@@ -23,6 +23,15 @@ from those components is bundled in this repository:
   * Model Context Protocol Python SDK — Anthropic
     https://github.com/modelcontextprotocol/python-sdk  (MIT)
 
+  * aiosqlite — omnilib
+    https://github.com/omnilib/aiosqlite  (MIT)
+
+  * Jinja2 — Pallets Project
+    https://github.com/pallets/jinja  (BSD-3-Clause)
+
+  * pydantic-settings — Pydantic team
+    https://github.com/pydantic/pydantic-settings  (MIT)
+
 The above components are listed as dependencies in server/pyproject.toml
 and installed at build time. No source code from them is redistributed
 in this repository.

@@ -1,0 +1,35 @@
+"""HTML dashboard routes for pb-chatroom."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+
+from .store.threads import get_thread_with_messages, list_threads
+
+templates = Jinja2Templates(directory=Path(__file__).parent / 'templates')
+
+router = APIRouter()
+
+
+@router.get('/', response_class=HTMLResponse)
+async def threads_list(request: Request) -> HTMLResponse:
+    db_path = request.app.state.settings.db_path
+    threads = await list_threads(db_path)
+    return templates.TemplateResponse(request, 'threads_list.html', {'threads': threads})
+
+
+@router.get('/threads/{thread_id}', response_class=HTMLResponse)
+async def thread_detail(request: Request, thread_id: str) -> HTMLResponse:
+    db_path = request.app.state.settings.db_path
+    data = await get_thread_with_messages(db_path, thread_id)
+    if data is None:
+        return HTMLResponse(status_code=404, content='Thread not found')
+    thread = {k: v for k, v in data.items() if k != 'messages'}
+    messages = data['messages']
+    return templates.TemplateResponse(
+        request, 'thread_detail.html', {'thread': thread, 'messages': messages}
+    )
