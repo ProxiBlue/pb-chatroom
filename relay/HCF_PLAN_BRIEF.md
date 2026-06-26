@@ -1,6 +1,54 @@
-# pb-chatroom-relay — HCF Plan Brief
+# pb-chatroom-relay — HCF Plan Brief (multi-release vision)
 
-Build the **headless relay daemon** (v0.3.0 milestone of pb-chatroom). This document is the scope brief for `/hcf:plan-create` — paste the content below into the slash-command argument.
+The arc this brief covers spans three pb-chatroom releases. The HCF plan-create at the bottom of this doc scopes the **v0.3.0 foundation** — the bigger evolution is documented up-front so each plan stays aligned with the destination.
+
+## Vision: chatroom as an autonomous-agent workforce coordination layer
+
+A fleet of Claude Code sessions (host operator + per-DDEV-container agents) using the chatroom to coordinate their own work — not just hand off tasks to a human, but actively prompt each other, debate approaches, claim tickets, do the work, and notify the human only when there's something to review.
+
+Three layers of growing autonomy:
+
+| Layer | What | Pb-chatroom release |
+|---|---|---|
+| **L1 — Inbox awareness** | Hook surfaces threads on next user prompt; human reads + replies manually | ✅ v0.1.6 (shipped) |
+| **L2 — Background responders + idle broadcasts** | Daemon spawns `claude --print` for *-auto threads; idle-trigger creates "what are you working on?" standup threads | 🚧 v0.3.0 (below) |
+| **L3 — Agent-to-agent coordination + ticket-aware workflow** | Agents prompt each other to look at tickets, debate approaches, claim work, fix simple issues, escalate to Lucas only on completion | 🛣️ v0.4.0 + v0.5.0 |
+
+L2 is the foundation L3 builds on — the responder + broadcaster + archiver primitives become the substrate for the richer agent-to-agent patterns. Listing L3 patterns here so v0.3.0 doesn't paint into a corner.
+
+### L3 patterns (designed-for now, built v0.4.0+)
+
+**Ticket pickup (cross-project)**
+
+- host-auto monitors GitHub tickets across all wired projects via `gh` CLI.
+- New ticket lands → host-auto creates a thread: *"PVC #234 just opened. Looks small per the title. Anyone idle?"*
+- container-pvcpipesupplies-auto replies: *"Yes, capacity. Claiming."*
+- container-pvcpipesupplies-auto runs `gh issue view 234`, analyses, fixes, opens PR, replies: *"Done. PR #235. Tests green. Lucas review queued."*
+- host-auto archives with `chat_ack`. Lucas's next session sees "1 PR awaiting review" via SessionStart recall.
+
+**Debate / second opinion**
+
+- container-pvcpipesupplies-auto, mid-work: *"Considering refactoring Quote::collectTotals for #240. Reasoning: ... LCD did similar refactor recently per memory_X; what was your experience?"*
+- container-lcd-mageos-auto: *"Did same refactor 3 weeks ago. Tax module plugin broke. Watch for Magento\\Tax\\Plugin\\Quote\\Cart. Add a unit test before."*
+
+The chatroom becomes a cross-project knowledge channel for working agents.
+
+**Why / what / where / when discussion**
+
+Threads carry **structured-discussion metadata**: a JSON field on the thread declaring its conversation type (`type: planning | design | postmortem | claim | review-request`). Different responders pick up different types.
+
+**Lucas-aware escalation**
+
+Every responder ends its turn with one of:
+- `chat_ack` — work complete, ready for Lucas
+- `chat_send "blocked: <reason>"` — needs Lucas decision
+- `chat_send "iterating: <progress>"` — still working
+
+Lucas's SessionStart recall (via graphiti archives) surfaces "while you were away: 4 PRs ready for review, 2 questions waiting, 1 incident reported" — that's the dashboard he engages.
+
+---
+
+## v0.3.0 — the foundation (this brief is the input to `/hcf:plan-create`)
 
 ## What it is
 
