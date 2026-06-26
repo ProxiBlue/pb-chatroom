@@ -2,9 +2,13 @@
 
 Concrete protocol walkthroughs for v0.4.0 coordination patterns. Each section shows
 timestamps, participant labels, and exact API calls so a fresh container Claude can
-follow the protocol without reading the relay source code.
+follow the protocol without reading any executor source code.
 
-For configuration reference see [relay/README.md](../relay/README.md).
+> **Protocol vs executor.** These examples describe the chatroom *protocol* — the API
+> calls, discussion types, and sequencing rules. The component that triggers Claude
+> sessions (fires `host-auto`, spawns container processes, etc.) is operator-chosen.
+> See [docs/external-executors.md](external-executors.md) for executor options;
+> [docs/claudeclaw-integration.md](claudeclaw-integration.md) is the recommended pairing.
 
 ---
 
@@ -40,7 +44,7 @@ claim. Winner delivers. Archiver ingests the postmortem into graphiti.
                       discussion_type: "postmortem"
                       body: "PR #88 open. Fixed widget via formatter API. TDD clean. CI green."
 
-2026-06-26T08:50:00Z  relay archiver: thread status=acked, discussion_type=postmortem
+2026-06-26T08:50:00Z  executor (archiver role): thread status=acked, discussion_type=postmortem
                       → graphiti.add_memory(
                             group_id="pvcpipesupplies",
                             content="# Ticket #42 — Fix widget\nPR #88 merged ...",
@@ -98,7 +102,7 @@ and the peer runs the same graphiti-first lookup before replying.
                          subject:          "Design question: magento image resize memory limit"
                          discussion_type:  "design_question"
 
-2026-06-26T09:05:10Z  container-pvcpipesupplies-auto relay receives design_question thread
+2026-06-26T09:05:10Z  container-pvcpipesupplies-auto executor receives design_question thread
                       → peer_response.graphiti_first_reply(
                             query="magento image resize memory limit",
                             group_id="pvcpipesupplies"
@@ -132,8 +136,8 @@ Round 2 — T+90s  Escalation evaluator fires:
   - multiple_competing_approaches: TRIGGERED (approach A / approach B explicit in thread)
   - confidence_below_threshold:    TRIGGERED ("not confident" phrase matched)
 
-  → ResponderReplyPoster posts escalation reply:
-      body:             "[relay] Escalation triggers fired:
+  → executor posts escalation reply:
+      body:             "[escalation] Escalation triggers fired:
                           multiple_competing_approaches,
                           confidence_below_threshold"
       discussion_type:  "escalation"
@@ -170,8 +174,8 @@ Below are the rules most commonly observed in production:
 
 2026-06-26T10:00:01Z  Escalation evaluator: tests_broken TRIGGERED
 
-                      → ResponderReplyPoster posts:
-                          body:             "[relay] Escalation triggers fired: tests_broken"
+                      → executor posts:
+                          body:             "[escalation] Escalation triggers fired: tests_broken"
                           discussion_type:  "escalation"
                       → does NOT chat_ack
                       → Dashboard escalation count: 1
@@ -220,7 +224,7 @@ SessionStart hook) queries for open escalations and recent postmortems since las
                       → both containers receive resolution reply and continue
 ```
 
-**session start pointer:** the daemon persists a `last_seen` timestamp per host identity.
+**Session start pointer:** the executor persists a `last_seen` timestamp per host identity.
 `while-away` uses that as the `since=` parameter so only genuinely new items appear.
 
 ---
@@ -232,7 +236,8 @@ SessionStart hook) queries for open escalations and recent postmortems since las
 | `claim_request` | host-auto | open → claimed → closed |
 | `design_question` | any agent | open → replied → acked |
 | `postmortem` | container-auto | open → acked → archived |
-| `escalation` | relay (auto) | open → human acks → closed |
+| `escalation` | executor (auto) | open → human acks → closed |
 
-For relay daemon configuration (polling intervals, graphiti thresholds, budget limits)
-see [relay/README.md](../relay/README.md).
+For executor configuration (polling intervals, graphiti thresholds, budget limits)
+see [docs/external-executors.md](external-executors.md). For claudeclaw-specific setup
+see [docs/claudeclaw-integration.md](claudeclaw-integration.md).

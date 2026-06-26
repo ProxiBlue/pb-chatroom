@@ -38,6 +38,15 @@ MCP URL from DDEV container: `http://host.docker.internal:7477/mcp`
 
 Add the MCP URL to your Claude Code session's MCP config to enable slash commands and subagent tool access.
 
+## Quick Start with claudeclaw
+
+Run headless Claude executor alongside the chatroom stack:
+
+1. Start the stack: `docker compose up -d`
+2. Configure claudeclaw with the MCP URL (`http://localhost:7477/mcp`)
+3. Set participant ID: `PB_CHATROOM_PARTICIPANT_ID=host-auto`
+4. See [docs/claudeclaw-integration.md](docs/claudeclaw-integration.md) for full config and budget-cap options.
+
 ## Slash commands
 
 | Command | What it does |
@@ -105,16 +114,17 @@ Graphiti is a soft runtime dependency: chat works without it; archival fails gra
 |---|---|
 | v0.1.0 | Phase 1 shipped — FastAPI REST service (POST /api/threads, GET /api/threads, GET /api/threads/{id}, POST /api/threads/{id}/messages, POST /api/threads/{id}/ack, GET /healthz) + SQLite WAL store + MCP server (chat_send, chat_list_threads, chat_read_thread, chat_ack) + HTML dashboard (GET /, GET /threads/{id}) + 5 slash commands + docker-compose stack. Structural enforcement: MCP exposes no root-thread creation — subagents reply only. Identity auto-resolved from `$DDEV_PROJECT` or `PB_CHATROOM_PARTICIPANT_ID`. |
 | v0.1.2–v0.1.8 | Incremental fixes — cross-container reach (bind 0.0.0.0), UserPromptSubmit inbox-check hook, chat_list_threads all-mode, richer dashboard (status badges, message counts, breadcrumb back-nav, full-width layout). |
-| v0.3.0 | Relay daemon — headless background process. Three opt-in role classes: **Responder** (dispatches inbound `*-auto` threads to `claude --print`), **Broadcaster** (emits per-participant standup threads on idle), **Archiver** (writes acked threads to graphiti). Per-responder hourly + daily budget caps. Profile-gated compose service (`--profile relay`). See [relay/README.md](relay/README.md). |
-| v0.4.0 | Agent-to-agent coordination layer — CLAIM protocol, multi-recipient threads, structured `discussion_type` metadata, escalation evaluator, graphiti-first ask-peer, dashboard escalation panel. See [relay/README.md](relay/README.md) and [docs/agent-to-agent.md](docs/agent-to-agent.md). |
+| v0.3.0 | External executor integration — headless background process (e.g. claudeclaw). Three opt-in role classes: **executor** (dispatches inbound `*-auto` threads to `claude --print`), **standup emitter** (emits per-participant standup threads on idle), **archiver** (writes acked threads to graphiti). Per-executor hourly + daily budget caps. Profile-gated compose service (`--profile relay`). See [docs/plan-history/v0_3_0.md](docs/plan-history/v0_3_0.md) for original plan. |
+| v0.4.0 | Agent-to-agent coordination layer — CLAIM protocol, multi-recipient threads, structured `discussion_type` metadata, escalation evaluator, graphiti-first ask-peer, dashboard escalation panel. claudeclaw recipe for headless executor integration. See [docs/agent-to-agent.md](docs/agent-to-agent.md) and [docs/claudeclaw-integration.md](docs/claudeclaw-integration.md). |
+| v0.5.0 | Slack ingress + identity registry — inbound Slack messages route into threads; per-participant identity registry replaces ad-hoc `$DDEV_PROJECT` resolution. (LCD bug 207ca92a) |
 
 ### Identity migration note
 
-`host-agent` is deprecated in v0.4.0. Migrate to `host` (human at keyboard) or `host-auto` (relay-managed responder). The relay will warn at startup if `host-agent` appears in `responders.json`. Existing threads addressed to `host-agent` remain readable; new broadcasts and CLAIM replies must use canonical identities.
+`host-agent` is deprecated in v0.4.0. Migrate to `host` (human at keyboard) or `host-auto` (executor-managed participant). External executors (e.g. claudeclaw) will warn at startup if `host-agent` appears in config. Existing threads addressed to `host-agent` remain readable; new broadcasts and CLAIM replies must use canonical identities.
 
 Planned next:
 
-- v0.5.0+ — reputation tracking, federation, web UI for config (TBD).
+- v0.6.0+ — reputation tracking, federation, web UI for config (TBD).
 
 ## License
 
