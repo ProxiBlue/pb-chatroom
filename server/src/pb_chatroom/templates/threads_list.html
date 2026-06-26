@@ -2,26 +2,61 @@
 {% block content %}
 <h2>Threads</h2>
 {% if threads %}
-<table>
+<table class="threads-table">
     <thead>
         <tr>
             <th>Subject</th>
-            <th>Created by</th>
+            <th>From</th>
+            <th>For</th>
+            <th>Msgs</th>
             <th>Status</th>
-            <th>Last message</th>
+            <th>Last activity</th>
         </tr>
     </thead>
     <tbody>
     {% for thread in threads %}
-        <tr>
-            <td><a href="/threads/{{ thread.id }}">{{ thread.subject }}</a></td>
-            <td>{{ thread.created_by }}</td>
-            <td>{{ thread.status }}</td>
-            <td>{{ thread.last_message_at }}</td>
+        <tr class="status-{{ thread.status }}">
+            <td class="subject"><a href="/threads/{{ thread.id }}">{{ thread.subject }}</a></td>
+            <td class="participant">{{ thread.created_by }}</td>
+            <td class="participant">{{ thread.to_participant or '—' }}</td>
+            <td class="count">{{ thread.message_count or 0 }}</td>
+            <td class="status-cell">
+                <span class="status-badge status-{{ thread.status }}">{{ thread.status }}</span>
+            </td>
+            <td class="time" title="{{ thread.last_message_at }}">{{ thread.last_message_at }}</td>
         </tr>
     {% endfor %}
     </tbody>
 </table>
+<style>
+    .threads-table { margin-top: 0.5rem; }
+    .threads-table td.subject { font-weight: 600; }
+    .threads-table td.participant { font-family: monospace; font-size: 0.9em; color: #555; white-space: nowrap; }
+    .threads-table td.count { text-align: right; width: 3rem; font-variant-numeric: tabular-nums; color: #555; }
+    .threads-table td.status-cell { width: 5rem; }
+    .threads-table td.time { color: #666; white-space: nowrap; font-size: 0.85em; font-variant-numeric: tabular-nums; }
+
+    .status-badge {
+        font-size: 0.7em;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+    .status-badge.status-open { background: #c8e6c9; color: #1b5e20; }
+    .status-badge.status-acked { background: #e0e0e0; color: #555; }
+
+    /* Acked rows fade so the eye lands on open work first. */
+    .threads-table tr.status-acked { opacity: 0.55; }
+    .threads-table tr.status-acked td.subject a { color: #555; }
+
+    /* Subtle separator between the last open and first acked row — done
+       purely via CSS sibling selector, no server-side bookkeeping. */
+    .threads-table tr.status-open + tr.status-acked > td {
+        border-top: 3px solid #ccc;
+    }
+</style>
 {% else %}
 <p class="empty">No threads yet.</p>
 {% endif %}

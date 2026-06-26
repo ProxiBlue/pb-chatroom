@@ -58,10 +58,22 @@ async def list_threads(
     to_participant: str | None = None,
     status: str | None = None,
 ) -> list[dict]:
+    """List threads with status-grouped + recency ordering.
+
+    Open threads come first, then acked. Within each group, most recently
+    active wins. The returned dict carries the ROOT message's recipient
+    (`to_participant` — i.e. who the thread was opened for) and a
+    `message_count` so the dashboard can render at-a-glance summary rows.
+    """
     clauses: list[str] = []
     params: list[str] = []
     if to_participant is not None:
-        clauses.append('m.to_participant = ?')
+        # Filter by "thread has at least one message addressed to X" — covers
+        # both the root recipient and any later replies. The displayed
+        # `to_participant` field is always the ROOT recipient (subquery below).
+        clauses.append(
+            't.id IN (SELECT thread_id FROM messages WHERE to_participant = ?)'
+        )
         params.append(to_participant)
     if status is not None:
         clauses.append('t.status = ?')
@@ -69,13 +81,17 @@ async def list_threads(
 
     where = ('WHERE ' + ' AND '.join(clauses)) if clauses else ''
     sql = f"""
-        SELECT t.id, t.subject, t.created_by, t.status, t.created_at, t.last_message_at,
-               m.to_participant
+        SELECT t.id, t.subject, t.created_by, t.status,
+               t.created_at, t.last_message_at,
+               (SELECT to_participant FROM messages
+                WHERE thread_id = t.id
+                ORDER BY created_at ASC LIMIT 1) AS root_to_participant,
+               (SELECT COUNT(*) FROM messages WHERE thread_id = t.id) AS message_count
         FROM threads t
-        JOIN messages m ON m.thread_id = t.id
         {where}
-        GROUP BY t.id
-        ORDER BY t.last_message_at DESC
+        ORDER BY
+            CASE t.status WHEN 'open' THEN 0 ELSE 1 END,
+            t.last_message_at DESC
     """
     async with connect(db_path) as db:
         db.row_factory = None
@@ -89,6 +105,8 @@ async def list_threads(
             'status': r[3],
             'created_at': r[4],
             'last_message_at': r[5],
+            'to_participant': r[6],
+            'message_count': r[7],
         }
         for r in rows
     ]
