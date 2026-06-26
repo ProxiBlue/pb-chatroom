@@ -17,7 +17,11 @@ async def chat_list_threads(
 
     Args:
         client: Shared httpx async client pointed at the chatroom server.
-        to: Filter by recipient participant ID. Defaults to the caller's resolved identity.
+        to: Filter by recipient participant ID. When omitted (None), defaults to
+            the caller's resolved identity — typical mode for "what's in my inbox?".
+            Pass an empty string ('') to disable the filter entirely and list ALL
+            open threads regardless of recipient — useful for cross-container
+            observability and debugging.
         status: Optional status filter ('open' or 'acked').
 
     Returns:
@@ -26,7 +30,11 @@ async def chat_list_threads(
     if to is None:
         to = resolve_participant_id()
 
-    params: dict[str, str] = {'to': to}
+    params: dict[str, str] = {}
+    if to:
+        # Only attach the filter when 'to' is a non-empty string. Empty-string
+        # means "no filter" — list ALL threads.
+        params['to'] = to
     if status is not None:
         params['status'] = status
 

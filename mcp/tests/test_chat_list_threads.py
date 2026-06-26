@@ -68,6 +68,25 @@ async def test_it_forwards_an_explicit_to_argument_to_the_query_string():
 
 
 @pytest.mark.asyncio
+async def test_it_omits_the_to_filter_when_caller_passes_empty_string():
+    """Passing to='' opts OUT of the per-participant filter — list ALL threads
+    regardless of recipient. Useful for cross-container observability and the
+    relay daemon's queue sweep. Default behaviour (to=None → caller identity)
+    must NOT regress.
+    """
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured['url'] = str(request.url)
+        return httpx.Response(200, json=THREADS_FIXTURE)
+
+    client = make_client(handler)
+    await chat_list_threads(client=client, to='')
+    # No 'to=' filter must be present in the query — empty string opted out.
+    assert 'to=' not in captured['url']
+
+
+@pytest.mark.asyncio
 async def test_it_forwards_an_explicit_status_argument_to_the_query_string():
     captured = {}
 

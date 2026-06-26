@@ -48,15 +48,21 @@ def build_mcp_server() -> Server:
             Tool(
                 name='chat_list_threads',
                 description=(
-                    'List chatroom threads addressed to a participant. '
-                    "Defaults to the caller's own resolved identity."
+                    'List chatroom threads. By default returns threads addressed to the '
+                    "caller's own resolved identity (their inbox). Pass to='' (empty string) "
+                    'to list ALL threads regardless of recipient — useful for cross-container '
+                    'observability and debugging.'
                 ),
                 inputSchema={
                     'type': 'object',
                     'properties': {
                         'to': {
                             'type': 'string',
-                            'description': 'Recipient participant ID (default: caller identity).',
+                            'description': (
+                                'Recipient participant ID. Omit (or null) to default to the '
+                                "caller's own identity (inbox view). Pass an empty string ('') "
+                                'to disable the filter and list ALL threads.'
+                            ),
                         },
                         'status': {
                             'type': 'string',
