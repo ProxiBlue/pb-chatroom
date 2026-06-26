@@ -64,11 +64,16 @@ class ChatroomClient:
     # Posting
     # ------------------------------------------------------------------
 
-    async def post_message(self, thread_id: str, body: str) -> str:
+    async def post_message(
+        self, thread_id: str, body: str, discussion_type: str | None = None
+    ) -> str:
         """Post a reply message to *thread_id*; return the created message id."""
+        payload: dict[str, str] = {'body': body}
+        if discussion_type is not None:
+            payload['discussion_type'] = discussion_type
         response = await self._client.post(
             f'/api/threads/{thread_id}/messages',
-            json={'body': body},
+            json=payload,
         )
         response.raise_for_status()
         return response.json()['id']
@@ -87,9 +92,12 @@ class ChatroomClient:
 
     async def create_root_thread(
         self,
+        *,
         subject: str,
         body: str,
         to_participant: str,
+        to_participants: list[str] | None = None,
+        discussion_type: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Create a root thread; return the created thread."""
@@ -98,6 +106,10 @@ class ChatroomClient:
             'body': body,
             'to_participant': to_participant,
         }
+        if to_participants is not None:
+            payload['to_participants'] = to_participants
+        if discussion_type is not None:
+            payload['discussion_type'] = discussion_type
         if metadata is not None:
             payload['metadata'] = metadata
         response = await self._client.post('/api/threads', json=payload)

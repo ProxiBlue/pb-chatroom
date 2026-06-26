@@ -9,6 +9,7 @@ from typing import Any, Protocol
 
 from pb_chatroom_relay.budget import BudgetEngine
 from pb_chatroom_relay.config import ResponderConfig
+from pb_chatroom_relay.peer_response import GraphitiSearchClient, graphiti_first_reply
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +144,12 @@ class ResponderDispatcher:
         runner: SubprocessRunner,
         budget_engine: BudgetEngine,
         default_timeout: float = 300.0,
+        graphiti: GraphitiSearchClient | None = None,
     ) -> None:
         self._runner = runner
         self._budget_engine = budget_engine
         self._default_timeout = default_timeout
+        self._graphiti = graphiti
 
     async def dispatch(
         self,
@@ -161,6 +164,21 @@ class ResponderDispatcher:
         # Evaluate trigger filters
         if not _thread_matches_trigger(thread, config):
             return DispatchResult(status=DispatchStatus.SKIPPED)
+
+        # Graphiti-first branch for design_question threads
+        if thread.get('discussion_type') == 'design_question' and self._graphiti is not None:
+            excerpt = await graphiti_first_reply(
+                topic=thread.get('subject', ''),
+                participant=thread.get('created_by', ''),
+                graphiti=self._graphiti,
+            )
+            if excerpt is not None:
+                return DispatchResult(
+                    status=DispatchStatus.SUCCESS,
+                    stdout=f'{excerpt}\n\nDONE'.encode(),
+                    returncode=0,
+                )
+            # excerpt is None (thin results) — fall through to subprocess with normal stdin
 
         # Check budget
         if not self._budget_engine.can_dispatch(responder_name):

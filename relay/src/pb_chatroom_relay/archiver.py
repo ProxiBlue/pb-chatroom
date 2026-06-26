@@ -24,9 +24,21 @@ class GraphitiClient(Protocol):
 # ---------------------------------------------------------------------------
 
 
-def render_thread(thread: dict[str, Any], messages: list[dict[str, Any]]) -> str:
-    """Return markdown: subject header + chronological messages."""
+def render_thread(
+    thread: dict[str, Any],
+    messages: list[dict[str, Any]],
+    mode: str = 'default',
+) -> str:
+    """Return markdown: subject header + chronological messages.
+
+    When *mode* is ``'postmortem'``, prepend a Summary section (first 500 chars
+    of the first message) before the full chronological thread body.
+    """
     lines = [f"# {thread['subject']}", '']
+    if mode == 'postmortem' and messages:
+        first_body = sorted(messages, key=lambda m: m['created_at'])[0]['body']
+        summary = first_body[:500].strip()
+        lines += ['## Summary', '', summary, '', '## Full Thread', '']
     for msg in sorted(messages, key=lambda m: m['created_at']):
         lines.append(f"**{msg['from_participant']}** ({msg['created_at']}):")
         lines.append(msg['body'])
@@ -115,10 +127,15 @@ class Archiver:
             detail = await self._chatroom.get_thread(thread['id'])
             messages: list[dict[str, Any]] = detail.get('messages', [])
 
-            rendered = render_thread(detail, messages)
+            is_postmortem = thread.get('discussion_type') == 'postmortem'
+            mode = 'postmortem' if is_postmortem else 'default'
+            rendered = render_thread(detail, messages, mode=mode)
 
-            if self._config.max_thread_chars and len(rendered) > self._config.max_thread_chars:
-                rendered = rendered[: self._config.max_thread_chars]
+            char_limit = self._config.max_thread_chars
+            if is_postmortem and char_limit:
+                char_limit = char_limit * 2
+            if char_limit and len(rendered) > char_limit:
+                rendered = rendered[:char_limit]
 
             participant: str = thread.get('from_participant', '')
             group_id = resolve_group_id(participant, self._config.group_id_map)

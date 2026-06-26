@@ -58,7 +58,7 @@ def _make_enabled_broadcaster_config() -> BroadcasterConfig:
         idle_threshold_minutes=60,
         max_per_day=3,
         min_hours_between=4,
-        broadcast_to=['target'],
+        broadcast_to=['host-auto'],
         prompt_subject='Hello',
         prompt_body='World',
     )
@@ -76,7 +76,7 @@ def _make_full_config() -> RespondersConfig:
     """All three role classes enabled."""
     return RespondersConfig(
         responders={
-            'bot': ResponderConfig(),
+            'host': ResponderConfig(),
         },
         broadcasters={
             'morning': _make_enabled_broadcaster_config(),
@@ -209,7 +209,7 @@ async def test_it_wires_the_polling_loop_to_deliver_new_threads_to_the_responder
     tmp_state_dir,
 ):
     cfg = RespondersConfig(
-        responders={'bot': ResponderConfig()},
+        responders={'host': ResponderConfig()},
     )
     dc = DaemonConfig(state_path=tmp_state_dir / 'state.json')
 
@@ -269,7 +269,7 @@ async def test_it_wires_the_polling_loop_to_deliver_new_threads_to_the_responder
     # Invoke the responder callback manually
     test_thread = {
         'id': 'thread-1',
-        'to_participant': 'bot',
+        'to_participant': 'host',
         'subject': 'hello',
         'body': 'world',
         'from_participant': 'user',
@@ -279,7 +279,7 @@ async def test_it_wires_the_polling_loop_to_deliver_new_threads_to_the_responder
     for cb in subscribed_callbacks:
         await cb(test_thread)
 
-    assert any(d['name'] == 'bot' for d in dispatched_threads)
+    assert any(d['name'] == 'host' for d in dispatched_threads)
 
 
 # ---------------------------------------------------------------------------

@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     # not at uvicorn's listener.
     mcp_host: str = '0.0.0.0'
     mcp_port: int = 7477
+    ask_peer_relevance_threshold: float = 0.6
+    graphiti_url: str = 'http://localhost:7478'  # graphiti MCP HTTP endpoint
 
     model_config = {'env_prefix': 'PB_CHATROOM_', 'extra': 'ignore'}
 
@@ -36,6 +38,8 @@ def build_mcp_server() -> Server:
     from mcp.types import TextContent, Tool
 
     from pb_chatroom_mcp.tools.chat_ack import chat_ack
+    from pb_chatroom_mcp.tools.chat_ask_peer import chat_ask_peer
+    from pb_chatroom_mcp.tools.chat_claim import chat_claim
     from pb_chatroom_mcp.tools.chat_read_thread import chat_read_thread
     from pb_chatroom_mcp.tools.chat_send import chat_send
     from pb_chatroom_mcp.tools.list_threads import chat_list_threads
@@ -129,6 +133,54 @@ def build_mcp_server() -> Server:
                     'required': ['thread_id'],
                 },
             ),
+            Tool(
+                name='chat_claim',
+                description=(
+                    'Claim a ticket-pickup thread (claim_request discussion_type). '
+                    'First valid claim wins; idempotent for the same agent.'
+                ),
+                inputSchema={
+                    'type': 'object',
+                    'properties': {
+                        'thread_id': {
+                            'type': 'string',
+                            'description': 'ID of the claim_request thread.',
+                        },
+                        'scope': {
+                            'type': 'string',
+                            'description': 'One-line description of your intended approach/scope.',
+                        },
+                    },
+                    'required': ['thread_id', 'scope'],
+                },
+            ),
+            Tool(
+                name='chat_ask_peer',
+                description=(
+                    'Ask another Claude participant a design question. '
+                    'Searches graphiti first — if relevant facts exist, returns them inline '
+                    'without posting a thread. Falls through to posting a design_question thread '
+                    'if graphiti is thin.'
+                ),
+                inputSchema={
+                    'type': 'object',
+                    'properties': {
+                        'topic': {
+                            'type': 'string',
+                            'description': 'Short search term for graphiti.',
+                        },
+                        'target_participant': {
+                            'type': 'string',
+                            'description': 'Participant ID to ask.',
+                        },
+                        'body': {
+                            'type': 'string',
+                            'description': 'Full question body if a thread is created.',
+                        },
+                    },
+                    'required': ['topic', 'target_participant', 'body'],
+                },
+            ),
         ]
 
     @server.call_tool()
@@ -163,6 +215,45 @@ def build_mcp_server() -> Server:
                     thread_id=arguments.get('thread_id', ''),
                     body=arguments.get('body'),
                     client=client,
+                )
+            text = result if isinstance(result, str) else json.dumps(result)
+            return [TextContent(type='text', text=text)]
+        if name == 'chat_claim':
+            async with build_http_client(settings) as client:
+                result = await chat_claim(
+                    thread_id=arguments.get('thread_id', ''),
+                    scope=arguments.get('scope', ''),
+                    client=client,
+                )
+            text = result if isinstance(result, str) else json.dumps(result)
+            return [TextContent(type='text', text=text)]
+        if name == 'chat_ask_peer':
+            from pb_chatroom_mcp.tools.chat_ask_peer import GraphitiSearchClient
+
+            class _HttpGraphitiClient:
+                """Thin wrapper: calls graphiti MCP via HTTP."""
+
+                def __init__(self, base_url: str) -> None:
+                    self._base_url = base_url
+
+                async def search_facts(self, query: str, group_id: str) -> list[dict]:
+                    async with httpx.AsyncClient(base_url=self._base_url) as gc:
+                        r = await gc.post(
+                            '/search_memory_facts',
+                            json={'query': query, 'group_id': group_id},
+                        )
+                        return r.json()
+
+            graphiti_client: GraphitiSearchClient = _HttpGraphitiClient(settings.graphiti_url)
+            async with build_http_client(settings) as client:
+                result = await chat_ask_peer(
+                    topic=arguments.get('topic', ''),
+                    target_participant=arguments.get('target_participant', ''),
+                    body=arguments.get('body', ''),
+                    chatroom_client=client,
+                    graphiti_client=graphiti_client,
+                    relevance_threshold=settings.ask_peer_relevance_threshold,
+                    caller_participant=resolve_participant_id(),
                 )
             text = result if isinstance(result, str) else json.dumps(result)
             return [TextContent(type='text', text=text)]

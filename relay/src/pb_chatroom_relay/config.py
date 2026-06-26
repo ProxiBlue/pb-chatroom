@@ -47,6 +47,20 @@ class BudgetConfig(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# GhPolling sub-model (responder)
+# ---------------------------------------------------------------------------
+
+
+class GhPollingConfig(BaseModel):
+    model_config = ConfigDict(extra='ignore')
+
+    repos: list[str] = Field(default_factory=list)
+    poll_interval_minutes: int = 5
+    eligible_label_filter: list[str] = Field(default_factory=list)
+    min_age_minutes: int = 10
+
+
+# ---------------------------------------------------------------------------
 # Responder record
 # ---------------------------------------------------------------------------
 
@@ -58,6 +72,7 @@ class ResponderConfig(BaseModel):
     claude_invocation: ClaudeInvocationConfig = Field(default_factory=ClaudeInvocationConfig)
     budget: BudgetConfig = Field(default_factory=BudgetConfig)
     archive_on_ack: bool = False
+    gh_polling: GhPollingConfig | None = None
 
 
 # ---------------------------------------------------------------------------

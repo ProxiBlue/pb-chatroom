@@ -28,7 +28,18 @@ class ResponderReplyPoster:
             return
 
         # SUCCESS
-        body = dispatch_result.stdout.decode('utf-8').rstrip()
+        from pb_chatroom_relay.escalation import evaluate_escalation
+
+        stdout_text = dispatch_result.stdout.decode('utf-8', errors='replace')
+        reasons = evaluate_escalation(stdout_text)
+        if reasons:
+            reason_text = 'Escalation triggers fired: ' + ', '.join(reasons)
+            await self._client.post_message(
+                thread_id, f'[relay] {reason_text}', discussion_type='escalation'
+            )
+            return  # do NOT ack
+
+        body = stdout_text.rstrip()
         lines = body.splitlines()
 
         # Find last non-empty line

@@ -18,7 +18,9 @@ class StubChatroomClient:
         self.post_message_calls: list[tuple[str, str]] = []
         self.ack_thread_calls: list[tuple[str, str | None]] = []
 
-    async def post_message(self, thread_id: str, body: str) -> str:
+    async def post_message(
+        self, thread_id: str, body: str, discussion_type: str | None = None
+    ) -> str:
         self.post_message_calls.append((thread_id, body))
         return 'msg-id'
 

@@ -122,6 +122,23 @@ async def append_ack(
     }
 
 
+async def has_legacy_identity_in_last_n_days(db_path: Path | str, days: int = 7) -> bool:
+    """Return True if any message in the last `days` days has from/to_participant = 'host-agent'."""
+    from datetime import timedelta
+
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat().replace('+00:00', 'Z')
+    async with connect(db_path) as db:
+        cursor = await db.execute(
+            """SELECT 1 FROM messages
+               WHERE (from_participant = 'host-agent' OR to_participant = 'host-agent')
+               AND created_at >= ?
+               LIMIT 1""",
+            (cutoff,),
+        )
+        row = await cursor.fetchone()
+    return row is not None
+
+
 async def list_messages(db_path: Path | str, thread_id: str) -> list[dict]:
     """Return all messages for thread_id ordered by created_at ASC."""
     async with connect(db_path) as db, db.execute(

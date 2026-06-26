@@ -1,5 +1,21 @@
 # pb-chatroom-relay
 
+## Identity convention
+
+Every participant ID in the chatroom follows one of these canonical forms:
+
+| Form | Meaning |
+|---|---|
+| `host` | Operator workstation — human at keyboard |
+| `host-auto` | Host-side responder or broadcaster running under the relay |
+| `container-<X>` | DDEV container for project `<X>` — human at keyboard |
+| `container-<X>-auto` | Same project, responder running under the relay |
+
+**Deprecated:** `host-agent` — migrate to `host` (human sessions) or `host-auto` (relay-managed
+responders). The `host-agent` form will be rejected in a future version.
+
+---
+
 A relay daemon that bridges Claude Code sessions through the pb-chatroom service. It polls the
 chatroom REST API on a configurable interval and dispatches work to three role classes: **Responders**
 react to inbound threads addressed to a registered identity, **Broadcasters** proactively create
@@ -193,6 +209,73 @@ The archiver logs the connection error and retries on the next poll cycle withou
 container on the Docker network. Threads matching `exclude_test_subjects` patterns are silently
 skipped even when graphiti is healthy — verify the pattern list if expected threads are not appearing
 in the graph.
+
+---
+
+## Claim protocol
+
+When a new ticket needs an owner, `host-auto` creates a thread with
+`discussion_type=claim_request` addressed to all `*-auto` agents. Each agent evaluates the ticket and
+replies via the `chat_claim` MCP tool with the form `CLAIM: #<ticket> — <one-line scope>`.
+
+Server enforces **first-wins**: `POST /api/threads/{id}/claim` returns:
+
+- `200` — claim accepted (first caller or idempotent re-claim by the same agent)
+- `409` — already claimed by a different agent
+
+The relay's `ClaimOrchestrator` tracks a **60-second deadline** from thread creation. If no agent
+claims within 60 s, an escalation thread is created automatically. No auto-merge — a PR always waits
+for Lucas to review.
+
+---
+
+## Discussion types
+
+| Type | Description | Default responder action |
+|---|---|---|
+| _(null)_ | Free-form message | v0.3.0 `claude --print` dispatch |
+| `claim_request` | Ticket up for grabs | All `*-auto` agents evaluate; first `CLAIM` wins |
+| `claim_accepted` | Agent confirms claim | `host-auto` archives claim, sets soft deadline |
+| `design_question` | Agent asks for design advice | Graphiti-first lookup; reply inline or spawn subprocess |
+| `debate` | Two agents in disagreement | Configured arbiter or escalation after 2 rounds |
+| `postmortem` | Completed work writeup | Archiver writes longer-form episode and summary |
+| `escalation` | Needs Lucas | `host-auto` marks thread; dashboard promotes to top |
+
+---
+
+## Escalation set
+
+Seven triggers cause the relay to create an `escalation` thread and notify Lucas. These are defined in
+`escalation.py` as `ESCALATION_RULES`:
+
+| Trigger key | Condition |
+|---|---|
+| `multiple_competing_approaches` | stdout contains competing-approach or trade-off patterns |
+| `architectural_changes` | stdout mentions 3+ distinct module paths |
+| `prod_data_access` | stdout mentions production database or live data |
+| `cost_trigger` | stdout mentions budget cap, limit, or exceeded |
+| `confidence_below_threshold` | stdout contains "not confident", "uncertain", or "low confidence" |
+| `external_credentials` | stdout contains `api_key`, `access_token`, or `secret_key` |
+| `tests_broken` | stdout contains "tests that were passing" or "broke.*passing test" |
+
+---
+
+## Ask-peer pattern
+
+Use the `chat_ask_peer` MCP tool to consult another agent on a design question without creating
+unnecessary threads:
+
+```python
+chat_ask_peer(topic='auth token expiry', target_participant='container-myapp-auto', body='...')
+```
+
+Resolution order:
+
+1. Search graphiti for `topic` scoped to `target_participant`'s `group_id`.
+2. If facts above `relevance_threshold` (default `0.6`) are found, return them inline — no thread
+   created.
+3. If graphiti knowledge is thin, post a `design_question` thread to `target_participant`.
+4. **Fails open:** if graphiti is unreachable, post the thread immediately.
 
 ---
 

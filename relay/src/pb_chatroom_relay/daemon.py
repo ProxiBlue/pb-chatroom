@@ -17,6 +17,7 @@ from pb_chatroom_relay.config import RespondersConfig
 from pb_chatroom_relay.dispatcher import DispatchStatus, ResponderDispatcher
 from pb_chatroom_relay.health import build_health_app
 from pb_chatroom_relay.idle import IdleSupervisor
+from pb_chatroom_relay.identity_validation import validate_identities
 from pb_chatroom_relay.polling import PollingLoop
 from pb_chatroom_relay.responder import ResponderReplyPoster
 from pb_chatroom_relay.state import State
@@ -294,6 +295,7 @@ class Daemon:
 
     async def run(self) -> None:
         """Start all component tasks and run until cancelled."""
+        validate_identities(self._config)
         self._wire_subscribers()
 
         async with asyncio.TaskGroup() as tg:

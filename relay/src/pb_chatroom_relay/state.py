@@ -17,6 +17,7 @@ class State:
         archive_cursor: str | None = None,
         budget: dict[str, Any] | None = None,
         broadcaster_state: dict[str, Any] | None = None,
+        gh_cursor: dict[str, str] | None = None,
     ) -> None:
         self.poll_cursor = poll_cursor
         self.archive_cursor = archive_cursor
@@ -24,6 +25,7 @@ class State:
         self.broadcaster_state: dict[str, Any] = (
             broadcaster_state if broadcaster_state is not None else {}
         )
+        self.gh_cursor: dict[str, str] = gh_cursor if gh_cursor is not None else {}
 
     # ------------------------------------------------------------------
     # Persistence
@@ -44,6 +46,7 @@ class State:
             archive_cursor=data.get('archive_cursor'),
             budget=data.get('budget', {}),
             broadcaster_state=data.get('broadcaster_state', {}),
+            gh_cursor=data.get('gh_cursor', {}),
         )
 
     def save(self, path: Path) -> None:
@@ -53,6 +56,7 @@ class State:
             'archive_cursor': self.archive_cursor,
             'budget': self.budget,
             'broadcaster_state': self.broadcaster_state,
+            'gh_cursor': self.gh_cursor,
         }
         tmp = path.with_suffix('.tmp')
         tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding='utf-8')
