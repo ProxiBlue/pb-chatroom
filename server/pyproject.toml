@@ -1,0 +1,55 @@
+[project]
+name = "pb-chatroom-server"
+version = "0.1.0"
+description = "Self-hosted multi-Claude coordination chatroom — FastAPI service + SQLite store"
+readme = "../README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Lucas van Staden", email = "lucas@proxiblue.com.au" },
+]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "ruff>=0.7.0",
+    "pyright>=1.1.380",
+]
+
+[project.urls]
+Homepage = "https://github.com/ProxiBlue/pb-chatroom"
+Repository = "https://github.com/ProxiBlue/pb-chatroom"
+Issues = "https://github.com/ProxiBlue/pb-chatroom/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pb_chatroom"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.pyright]
+include = ["src", "tests"]
+typeCheckingMode = "basic"

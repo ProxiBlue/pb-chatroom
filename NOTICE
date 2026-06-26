@@ -1,0 +1,28 @@
+pb-chatroom
+Copyright (c) 2026 Lucas van Staden / Proxiblue
+https://github.com/ProxiBlue/pb-chatroom
+
+This product includes software developed by
+Lucas van Staden / Proxiblue (https://www.proxiblue.com.au).
+
+------------------------------------------------------------------------
+
+This plugin runs a self-hosted Python service and depends on third-party
+open-source software fetched and run by the consumer — no source code
+from those components is bundled in this repository:
+
+  * FastAPI — Sebastián Ramírez et al.
+    https://github.com/fastapi/fastapi  (MIT)
+
+  * SQLite — public domain
+    https://www.sqlite.org/
+
+  * uvicorn — Encode OSS Ltd.
+    https://github.com/encode/uvicorn  (BSD-3-Clause)
+
+  * Model Context Protocol Python SDK — Anthropic
+    https://github.com/modelcontextprotocol/python-sdk  (MIT)
+
+The above components are listed as dependencies in server/pyproject.toml
+and installed at build time. No source code from them is redistributed
+in this repository.

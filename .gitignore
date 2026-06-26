@@ -1,0 +1,41 @@
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor noise
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Local data (chatroom.db, secrets, runtime state)
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# HCF / pb-hcf runtime
+.claude/wires.json
+.claude/plans/
+.claude/agents/
+
+# Node (none expected but defensive)
+node_modules/
