@@ -9,7 +9,7 @@
       "name": "pb-chatroom",
       "source": "./",
       "description": "Self-hosted multi-Claude coordination chatroom. Python FastAPI service + SQLite + MCP tools + slash commands. Threaded messages between host Claude and DDEV-container Claudes. Subagent read access, designated subagent write access. Optional graphiti archival.",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "license": "Apache-2.0",
       "keywords": [
         "chat",

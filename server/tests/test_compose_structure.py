@@ -17,10 +17,15 @@ def _load() -> dict:
     return yaml.safe_load(COMPOSE_FILE.read_text())
 
 
-def test_it_defines_a_server_service_that_binds_to_127_0_0_1_7476() -> None:
+def test_it_defines_a_server_service_that_exposes_7476_for_cross_container_reach() -> None:
+    # Server's REST port is intentionally NOT 127.0.0.1-restricted — DDEV /
+    # dev containers reach the host via the docker-bridge gateway IP, which
+    # is not loopback. chat_threads_open slash command POSTs to
+    # /api/threads from container sessions, so the REST listener must be
+    # reachable from host.docker.internal. See v0.1.5 commit.
     cfg = _load()
     ports = cfg['services']['server']['ports']
-    assert '127.0.0.1:7476:7476' in ports
+    assert '7476:7476' in ports
 
 
 def test_it_defines_an_mcp_service_that_exposes_7477_for_cross_container_reach() -> None:

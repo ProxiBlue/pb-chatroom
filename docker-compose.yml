@@ -2,7 +2,15 @@ services:
   server:
     build: ./server
     ports:
-      - "127.0.0.1:7476:7476"
+      # The REST server is reached by the chat_threads_open slash command
+      # (root-thread creation) from any Claude Code session — host or DDEV
+      # container. Container sessions need host.docker.internal:7476, which
+      # resolves to the docker-bridge gateway IP and would be refused by a
+      # 127.0.0.1-only binding. Bind all interfaces; same trade-off as the
+      # mcp service (v0.1.3) — isolation relies on the workstation's
+      # firewall. The HTML dashboard is also reached at this port; on a
+      # multi-user LAN, add a ufw rule (see README "Container reachability").
+      - "7476:7476"
     volumes:
       - ./data:/data
     environment:
