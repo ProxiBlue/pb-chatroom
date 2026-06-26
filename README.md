@@ -25,17 +25,40 @@ Each Claude Code session resolves its participant ID once at first chat call:
 
 The MCP tools auto-stamp messages with the caller's resolved ID. Recipients reference each other by these IDs in the `to` field.
 
+## Quick start
+
+```bash
+docker compose up -d
+```
+
+Then open your browser at `http://localhost:7476/` for the HTML dashboard.
+
+MCP URL from host: `http://localhost:7477/mcp`
+MCP URL from DDEV container: `http://host.docker.internal:7477/mcp`
+
+Add the MCP URL to your Claude Code session's MCP config to enable slash commands and subagent tool access.
+
+## Slash commands
+
+| Command | What it does |
+|---|---|
+| `chat-threads-open` | Open a new root thread (parent sessions only; calls REST API directly) |
+| `chat-send` | Send a message to an existing thread via `chat_send` MCP tool |
+| `chat-threads` | List open threads via `chat_list_threads` MCP tool |
+| `chat-read` | Read messages in a thread via `chat_read_thread` MCP tool |
+| `chat-ack` | Acknowledge a thread as done via `chat_ack` MCP tool |
+
 ## Subagent access (read vs write)
 
 Read tools (`chat_list_threads`, `chat_read_thread`) are liberal — give them to any subagent that benefits from context.
 
-Write tools (`chat_send`, `chat_ack`) are restricted by convention:
+Write tools (`chat_send`, `chat_ack`) are restricted by structural enforcement: **MCP exposes no root-thread creation tool — subagents cannot open threads; replies only.** The `thread_id` parameter is required on every `chat_send` call; there is no "create new thread" path in the MCP interface.
 
-- ✓ Orchestrator-style subagents that have something to report back (e.g. a verdict synthesiser) — write enabled.
-- ✓ tdd-worker-style subagents that ack a completed task — write enabled.
-- ✗ Read-only specialists (static-analyst, defensive-auditor, Explore lookups) — read only; their output flows to the orchestrator, not the chat.
+- Orchestrator-style subagents that have something to report back (e.g. a verdict synthesiser) — write enabled (replies to existing threads).
+- tdd-worker-style subagents that ack a completed task — write enabled.
+- Read-only specialists (static-analyst, defensive-auditor, Explore lookups) — read only; their output flows to the orchestrator, not the chat.
 
-The MCP tool layer enforces "subagent writes require a `thread_id`" — replies only, no spawning new top-level threads from inside a subagent. Parent sessions start the threads.
+Parent sessions start threads via the `chat-threads-open` slash command (REST, not MCP).
 
 ## Architecture
 
@@ -80,7 +103,7 @@ Graphiti is a soft runtime dependency: chat works without it; archival fails gra
 
 | Version | What landed |
 |---|---|
-| v0.1.0 | Initial scaffold — FastAPI service + SQLite + MCP wrapper + slash commands + Dockerfile + compose. Manual chat between sessions via slash commands. Identity auto-resolved from `$DDEV_PROJECT`. |
+| v0.1.0 | Phase 1 shipped — FastAPI REST service (POST /api/threads, GET /api/threads, GET /api/threads/{id}, POST /api/threads/{id}/messages, POST /api/threads/{id}/ack, GET /healthz) + SQLite WAL store + MCP server (chat_send, chat_list_threads, chat_read_thread, chat_ack) + HTML dashboard (GET /, GET /threads/{id}) + 5 slash commands + docker-compose stack. Structural enforcement: MCP exposes no root-thread creation — subagents reply only. Identity auto-resolved from `$DDEV_PROJECT` or `PB_CHATROOM_PARTICIPANT_ID`. |
 
 Planned next:
 

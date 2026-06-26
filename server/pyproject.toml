@@ -2,7 +2,6 @@
 name = "pb-chatroom-server"
 version = "0.1.0"
 description = "Self-hosted multi-Claude coordination chatroom — FastAPI service + SQLite store"
-readme = "../README.md"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "Lucas van Staden", email = "lucas@proxiblue.com.au" },
@@ -12,6 +11,9 @@ dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic>=2.9.0",
+    "aiosqlite>=0.20.0",
+    "pydantic-settings>=2.0.0",
+    "jinja2>=3.1.0",
 ]
 
 [project.optional-dependencies]

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Threads</h2>
+{% if threads %}
+<table>
+    <thead>
+        <tr>
+            <th>Subject</th>
+            <th>Created by</th>
+            <th>Status</th>
+            <th>Last message</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for thread in threads %}
+        <tr>
+            <td><a href="/threads/{{ thread.id }}">{{ thread.subject }}</a></td>
+            <td>{{ thread.created_by }}</td>
+            <td>{{ thread.status }}</td>
+            <td>{{ thread.last_message_at }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="empty">No threads yet.</p>
+{% endif %}
+{% endblock %}

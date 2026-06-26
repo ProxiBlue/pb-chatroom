@@ -1,0 +1,26 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "127.0.0.1:7476:7476"
+    volumes:
+      - ./data:/data
+    environment:
+      PB_CHATROOM_DB_PATH: /data/chatroom.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:7476/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  mcp:
+    build: ./mcp
+    ports:
+      - "127.0.0.1:7477:7477"
+    environment:
+      PB_CHATROOM_SERVER_URL: http://server:7476
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
