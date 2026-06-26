@@ -8,9 +8,11 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "fastapi>=0.115.0",
     "httpx>=0.27.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.0.0",
+    "uvicorn>=0.30.0",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +21,7 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.7.0",
     "pyright>=1.1.380",
+    "pyyaml>=6.0",
 ]
 
 [project.scripts]
@@ -45,6 +48,9 @@ minversion = "8.0"
 addopts = "-ra"
 testpaths = ["tests"]
 asyncio_mode = "auto"
+markers = [
+    "e2e: end-to-end docker-compose tests (requires --run-e2e flag)",
+]
 
 [tool.pyright]
 include = ["src", "tests"]

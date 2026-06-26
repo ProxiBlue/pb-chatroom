@@ -104,12 +104,12 @@ Graphiti is a soft runtime dependency: chat works without it; archival fails gra
 | Version | What landed |
 |---|---|
 | v0.1.0 | Phase 1 shipped — FastAPI REST service (POST /api/threads, GET /api/threads, GET /api/threads/{id}, POST /api/threads/{id}/messages, POST /api/threads/{id}/ack, GET /healthz) + SQLite WAL store + MCP server (chat_send, chat_list_threads, chat_read_thread, chat_ack) + HTML dashboard (GET /, GET /threads/{id}) + 5 slash commands + docker-compose stack. Structural enforcement: MCP exposes no root-thread creation — subagents reply only. Identity auto-resolved from `$DDEV_PROJECT` or `PB_CHATROOM_PARTICIPANT_ID`. |
+| v0.3.0 | Relay daemon — persistent background process that polls the REST API and fans out messages to registered subscriber callbacks. Enables true async handovers without a running Claude session. See [relay/README.md](relay/README.md) for full reference. |
 
 Planned next:
 
 - v0.2.0: Stop-hook auto-poll for near-live message arrival, basic HTML dashboard at `:7476`.
-- v0.3.0: Subagent tool access (per-agent config matrix) + graphiti archival on `/chat ack`.
-- v0.4.0: Headless relay daemon for true async handovers.
+- v0.4.0: Subagent tool access (per-agent config matrix) + graphiti archival on `/chat ack`.
 
 ## License
 
