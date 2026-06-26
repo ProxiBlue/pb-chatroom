@@ -2,7 +2,6 @@
 name = "pb-chatroom-server"
 version = "0.1.0"
 description = "Self-hosted multi-Claude coordination chatroom — FastAPI service + SQLite store"
-readme = "../README.md"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "Lucas van Staden", email = "lucas@proxiblue.com.au" },
