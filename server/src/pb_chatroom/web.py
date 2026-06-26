@@ -15,11 +15,18 @@ templates = Jinja2Templates(directory=Path(__file__).parent / 'templates')
 router = APIRouter()
 
 
+def _base_context(request: Request) -> dict:
+    """Context fields every dashboard template needs (shared via base.html)."""
+    return {'refresh_interval_seconds': request.app.state.settings.refresh_interval_seconds}
+
+
 @router.get('/', response_class=HTMLResponse)
 async def threads_list(request: Request) -> HTMLResponse:
     db_path = request.app.state.settings.db_path
     threads = await list_threads(db_path)
-    return templates.TemplateResponse(request, 'threads_list.html', {'threads': threads})
+    return templates.TemplateResponse(
+        request, 'threads_list.html', {**_base_context(request), 'threads': threads}
+    )
 
 
 @router.get('/threads/{thread_id}', response_class=HTMLResponse)
@@ -31,5 +38,7 @@ async def thread_detail(request: Request, thread_id: str) -> HTMLResponse:
     thread = {k: v for k, v in data.items() if k != 'messages'}
     messages = data['messages']
     return templates.TemplateResponse(
-        request, 'thread_detail.html', {'thread': thread, 'messages': messages}
+        request,
+        'thread_detail.html',
+        {**_base_context(request), 'thread': thread, 'messages': messages},
     )

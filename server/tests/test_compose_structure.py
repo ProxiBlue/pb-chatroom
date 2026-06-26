@@ -23,10 +23,14 @@ def test_it_defines_a_server_service_that_binds_to_127_0_0_1_7476() -> None:
     assert '127.0.0.1:7476:7476' in ports
 
 
-def test_it_defines_an_mcp_service_that_binds_to_127_0_0_1_7477() -> None:
+def test_it_defines_an_mcp_service_that_exposes_7477_for_cross_container_reach() -> None:
+    # Mcp's port is intentionally NOT 127.0.0.1-restricted — DDEV / dev
+    # containers reach the host via the docker-bridge gateway IP, which
+    # is not loopback. Binding 127.0.0.1:7477:7477 would refuse those
+    # connections. See v0.1.3 commit + README "Container reachability".
     cfg = _load()
     ports = cfg['services']['mcp']['ports']
-    assert '127.0.0.1:7477:7477' in ports
+    assert '7477:7477' in ports
 
 
 def test_it_never_binds_either_service_to_0_0_0_0_on_the_host() -> None:

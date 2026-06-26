@@ -6,7 +6,8 @@
     <title>pb-chatroom</title>
     <style>
         body { font-family: monospace; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
-        h1 { border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; }
+        h1 { border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; display: flex; align-items: baseline; justify-content: space-between; }
+        h1 a { text-decoration: none; color: inherit; }
         table { border-collapse: collapse; width: 100%; }
         th, td { text-align: left; padding: 0.4rem 0.6rem; border: 1px solid #ddd; }
         th { background: #f4f4f4; }
@@ -15,10 +16,79 @@
         .messages li { border: 1px solid #ddd; margin: 0.4rem 0; padding: 0.5rem; }
         .msg-meta { font-size: 0.85em; color: #666; }
         .empty { color: #888; font-style: italic; }
+        .refresh-meta { font-size: 0.75em; color: #888; font-weight: normal; }
+        .refresh-meta a { color: #888; text-decoration: underline; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1><a href="/">pb-chatroom</a></h1>
+    <h1>
+        <a href="/">pb-chatroom</a>
+        <span class="refresh-meta">
+            auto-refresh in <span id="rf-countdown">{{ refresh_interval_seconds | default(10) }}</span>s
+            <a id="rf-toggle" onclick="toggleRefresh()">pause</a>
+        </span>
+    </h1>
     {% block content %}{% endblock %}
+    <script>
+        // Auto-refresh — preserves vertical scroll so the page doesn't jump
+        // when threads/messages update. Pausable via the link in the header.
+        (function () {
+            const INTERVAL_SECONDS = {{ refresh_interval_seconds | default(10) }};
+            const countdownEl = document.getElementById('rf-countdown');
+            const toggleEl = document.getElementById('rf-toggle');
+            const SCROLL_KEY = 'pb-chatroom-scroll-' + location.pathname;
+            const PAUSE_KEY = 'pb-chatroom-refresh-paused';
+
+            let remaining = INTERVAL_SECONDS;
+            let timerId = null;
+
+            // Restore scroll position from previous tick
+            const savedScroll = sessionStorage.getItem(SCROLL_KEY);
+            if (savedScroll !== null) {
+                window.scrollTo(0, parseInt(savedScroll, 10) || 0);
+            }
+
+            function tick() {
+                remaining -= 1;
+                if (countdownEl) countdownEl.textContent = remaining;
+                if (remaining <= 0) {
+                    sessionStorage.setItem(SCROLL_KEY, window.scrollY);
+                    window.location.reload();
+                }
+            }
+
+            function start() {
+                if (timerId !== null) return;
+                remaining = INTERVAL_SECONDS;
+                if (countdownEl) countdownEl.textContent = remaining;
+                if (toggleEl) toggleEl.textContent = 'pause';
+                timerId = setInterval(tick, 1000);
+            }
+
+            function stop() {
+                if (timerId === null) return;
+                clearInterval(timerId);
+                timerId = null;
+                if (countdownEl) countdownEl.textContent = 'paused';
+                if (toggleEl) toggleEl.textContent = 'resume';
+            }
+
+            window.toggleRefresh = function () {
+                if (timerId === null) {
+                    sessionStorage.removeItem(PAUSE_KEY);
+                    start();
+                } else {
+                    sessionStorage.setItem(PAUSE_KEY, '1');
+                    stop();
+                }
+            };
+
+            if (sessionStorage.getItem(PAUSE_KEY) === '1') {
+                stop();
+            } else {
+                start();
+            }
+        })();
+    </script>
 </body>
 </html>
