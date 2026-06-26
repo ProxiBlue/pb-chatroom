@@ -1,6 +1,6 @@
 [project]
 name = "pb-chatroom-relay"
-version = "0.0.1"
+version = "0.3.0"
 description = "Headless relay daemon for pb-chatroom — polls chatroom threads addressed to *-auto participants, spawns Claude Code via --print, posts responses back as replies. Closes the no-human-in-the-loop autonomy gap."
 license = { text = "Apache-2.0" }
 authors = [
