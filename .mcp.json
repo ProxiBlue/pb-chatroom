@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "chatroom": {
+      "type": "http",
+      "url": "${user_config.chatroom_url}",
+      "description": "Self-hosted multi-Claude coordination chatroom. Subagent reads liberal; writes restricted to existing threads (chat_send / chat_ack require thread_id — root-thread creation is parent-only via /chat threads-open). Identity auto-resolved from $DDEV_PROJECT or 'host'. URL is prompted at plugin enable time (userConfig.chatroom_url) — default is 127.0.0.1:7477 for host; change to host.docker.internal:7477 for in-container consumers."
+    }
+  }
+}
