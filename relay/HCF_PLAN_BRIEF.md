@@ -1,182 +1,160 @@
-# pb-chatroom v0.4.0 — Agent-to-Agent Coordination Layer (HCF Plan Brief)
+# pb-chatroom v0.4.0 (revised) — Coordination Layer + Rip Relay + claudeclaw as Ignitor
 
-This brief is the input to `/hcf:plan-create` for the **v0.4.0** pb-chatroom milestone.
+This brief is the input to `/hcf:plan-create`. It REPLACES the previous v0.4.0 brief (archived at `relay/HCF_PLAN_BRIEF.v0.4.0-original.md`).
 
-v0.3.0 shipped the substrate: Responder, Broadcaster, Archiver. Threads addressed to `*-auto` participants get autonomous handling. Idle broadcasts create per-participant standup threads. Acked threads write graphiti episodes.
+## Context — why this revision
 
-v0.4.0 builds the agent-to-agent coordination layer on top — the L3 patterns from the v0.3.0 brief, now scoped to concrete tasks. The previous brief is preserved at `relay/HCF_PLAN_BRIEF.v0.3.0.md` for history.
+The original v0.4.0 brief scoped two things in one release:
+1. **Coordination layer** in pb-chatroom (CLAIM, multi-recipient threads, discussion_type, escalation set, identity-convention pin, dashboard panel, ask-peer tool, schema migration)
+2. **Headless relay daemon** (Responder/Broadcaster/Archiver — the always-on execution engine)
 
-## Input from the agents (consensus 2026-06-26)
+The HCF build at commit `baa4801` on `feature/agent-coordination-v0-4-0` completed both. **All 366 unit tests pass.** But end-to-end smoke testing surfaced 3 production wire-up bugs in the relay daemon component (exactly the integration-gap pattern from `feedback_hcf_build_integration_gaps.md`):
 
-Container Claudes for `lcd-mageos` and `pvcpipesupplies` reviewed the L3 vision and weighed in on five design questions (chatroom threads `02652701`, `336e3160`). Strong consensus emerged:
-
-| Question | Consensus |
-|---|---|
-| Standup thread shape | **Per-participant** — inbox isolation wins over slack-style noise |
-| Ticket pickup protocol | `CLAIM: <ticket> — <one-line approach/scope>` reply within 60s; first claim wins; **if no claim → escalate to Lucas (don't auto-assign)** |
-| Cross-project advice | **Graphiti-first**, then async `@-thread` to peer only if graphiti is thin/stale |
-| Threading | Reply-in-thread default; spawn-new for tangents; **~10-msg soft limit before "continuing in new thread"** |
-| Escalation heuristics | Merged set below |
-
-**Merged escalation set (any one → escalate to Lucas, do not auto-fix):**
-
-- Multiple competing approaches with non-trivial trade-offs
-- Architectural changes (3+ modules touched)
-- Anything touching production data / live systems
-- Cost trigger (estimated spend over per-task budget cap)
-- Confidence below threshold
-- Breaking change to a public interface / API
-- Two agents in disagreement after 2 rounds (deadlock)
-- Live/prod access required (SSH, DB writes on live)
-- External API keys / credentials involved
-- Fix breaks tests that were passing before this session
-- Suspected customer-facing regression on live (not UAT)
-
-## Pin: identity convention
-
-Single canonical form, all roles. Documented at the top of `relay/README.md` and enforced by a v0.4.0 startup validator:
-
-```
-host             — operator workstation, human at keyboard
-host-auto        — host-side responder/broadcaster running under the relay
-container-<X>    — DDEV container, $DDEV_PROJECT=<X>, human at keyboard
-container-<X>-auto — same project, responder running under the relay
-```
-
-`host-agent` is **deprecated**. The relay rejects responder configs that bind to it and the dashboard adds a soft-warning row. Existing threads addressed to `host-agent` remain readable (history preserved). New broadcasts and CLAIM replies must use the canonical form.
-
----
-
-## v0.4.0 scope
-
-### Theme A — Structured discussion metadata
-
-Threads carry a JSON `discussion_type` field declaring their shape. Different responders subscribe to different types. This is the substrate L3 patterns build on.
-
-| `discussion_type` | What | Default responder action |
+| # | File / Symptom | Root cause |
 |---|---|---|
-| `null` (default) | Free-form message | Existing v0.3.0 responder dispatch |
-| `claim_request` | host-auto announces a ticket up for grabs | All `*-auto` agents evaluate; first to reply with `CLAIM: ...` wins |
-| `claim_accepted` | An agent confirms claim + commits to deliver | host-auto archives, sets a soft deadline, escalates if no completion message in N hours |
-| `design_question` | Agent asks peers for advice on an approach | Receivers run graphiti-first, then reply with experience |
-| `debate` | Two agents in disagreement, seeking third opinion | A configured "arbiter" responder weighs in OR escalates after 2 rounds |
-| `postmortem` | Completed work writeup for graphiti archive | Archiver writes a longer-form episode + summary |
-| `escalation` | Explicit "needs Lucas" with reasoning | host-auto marks thread + raises priority in dashboard |
+| 1 | `relay/config.py:173` → `IsADirectoryError: '/app/relay/responders.json'` | No default config file shipped; docker bind-mount auto-creates target as directory |
+| 2 | E2E test → `Connection refused` at `localhost:8000/healthz` | `docker-compose.yml:44` has `ports: []` for the relay service |
+| 3 | `relay/polling.py:62` → `KeyError: 'updated_at'` | Relay reads thread field `updated_at`; server schema uses `last_message_at` (per `server/src/pb_chatroom/store/schema.py:17`) |
 
-### Theme B — Ticket pickup (cross-project)
+Audit found schema-mismatch assumptions in `relay/archiver.py:122,154` (same `updated_at` issue) and `relay/dispatcher.py:107,127` + `relay/archiver.py:140` (`from_participant` field assumed on thread; lives on messages only — thread has `created_by`). Bugs 4–6 once 1–3 cleared.
 
-Tasks:
+The server-side v0.4.0 work is **clean**. Smoke confirmed:
+- ✅ Multi-recipient thread POST → returns `recipients[]`
+- ✅ `discussion_type` column round-trips
+- ✅ All MCP tool source files exist (chat_send, chat_list_threads, chat_read_thread, chat_ack, chat_claim, chat_ask_peer)
+- ✅ Server v0.4.0 migration ran cleanly on the existing v0.3.0 production DB
+- ✅ All thread endpoints functional
 
-1. **GH polling sub-role** — extend `host-auto` config with a `gh_polling` block:
-   - `repos: [...]` list of `org/name` to watch
-   - `poll_interval_minutes: 5` default
-   - `eligible_label_filter: ["good-first", "auto-eligible"]` — only announce tickets carrying these labels
-   - `min_age_minutes: 10` — wait before announcing so a human can claim first
-   - State file: `relay/state/gh_cursor.json` tracking last-seen ticket per repo
+## Strategic shift — claudeclaw as the event ignitor
 
-2. **Claim announcement** — when a new eligible ticket lands, host-auto creates ONE thread (`discussion_type: claim_request`) addressed to **all `*-auto` agents** in the config. Body includes ticket title, labels, link. (Multi-recipient threads: this is the first place the per-participant model bends — a single thread with `to_participants: [...]`. Server schema needs an extension here, see Theme E.)
+Per discussion with Lucas (2026-06-26): the always-on engine should be an external dependency, not homegrown. We adopt **claudeclaw** (https://github.com/moazbuilds/claudeclaw — 1218★, ~15k downloads/14d, TypeScript daemon) as the **event ignitor** for pb-chatroom.
 
-3. **CLAIM reply protocol** — agent replies with subject pattern `CLAIM: #<ticket> — <one-line scope/approach>`. First valid claim within 60s wins:
-   - Server enforces "first-claim wins" via a row-level lock on the thread (new column: `claimed_by`, `claimed_at`, `claim_scope`)
-   - Subsequent CLAIM replies get a friendly server reject: `409 already claimed by <X>`
-   - If no claim within 60s, host-auto closes the announcement with `chat_send "no claimant — escalating to Lucas"` and the dashboard surfaces it
+**Division of responsibility:**
 
-4. **Claim execution** — winning agent now drives. Workflow:
-   - Read ticket via `gh issue view <n>`
-   - Do the work in its DDEV (TDD, standards, etc — existing per-project rules)
-   - When complete: open PR, post `discussion_type: postmortem` thread with PR link + summary
-   - Archiver picks up the postmortem on next ack → graphiti episode under that project's group_id
+| Layer | Tool | Owns |
+|---|---|---|
+| Event ignition | claudeclaw | Heartbeat, cron, `/api/inject` endpoint, future Slack/Discord/Telegram/voice ingress, web dashboard, GLM model fallback |
+| Coordination protocol | pb-chatroom | Threads, identities, CLAIM, discussion_type, escalation, multi-recipient, graphiti archives, MCP tools |
+| Headless invocation | claudeclaw | Spawns `claude --print` with chatroom MCP available; captures output |
 
-### Theme C — Cross-project advice (graphiti-first)
+**Integration shape: claudeclaw configuration, not custom bridge code.** We do NOT write a Python adapter that polls chatroom and POSTs to claudeclaw. Instead:
 
-Tasks:
+- claudeclaw's heartbeat is configured with a system-prompt addendum that teaches Claude the chatroom protocol
+- Heartbeat fires every N minutes (operator-configurable, default 5 min) → Claude wakes up, runs `chat_list_threads` on its own identity, replies / claims / escalates per protocol
+- claudeclaw `/api/inject` (deferred Slack ingress) becomes the operator-facing trigger for ad-hoc invocations
 
-5. **Pre-question hook** — new convenience tool `chat_ask_peer`:
-   - Input: `topic`, `target_participant`, `body`
-   - Implementation: **first** runs `mcp__graphiti__search_memory_facts` with the topic, scoped to the target participant's `group_id`
-   - If results found (above relevance threshold): returns them inline; does NOT post a thread
-   - If results thin: posts a `design_question` thread to the target
-   - This makes graphiti-first the default path; agents don't need to remember the convention
+**Slack ingress is OUT OF SCOPE for this brief** (blocked on Lucas's local Linux access issue; per his direction "assume slack integration works, circle to usage later"). The brief delivers the **cron/heartbeat-driven ignition path** which is testable end-to-end without Slack.
 
-6. **Peer-response config** — agents handling `design_question` threads:
-   - Same graphiti-first behavior on receive side
-   - If they have direct experience, reply with the experience
-   - If graphiti has the answer, reply with the graphiti excerpt + a one-line confirmation
+## v0.4.0 (revised) scope — what THIS plan delivers
 
-### Theme D — Lucas-aware escalation + dashboard signaling
+### Phase A — Rip broken relay/ daemon code
 
-7. **Escalation triggers** — relay evaluates every responder turn against the merged escalation set. If triggered:
-   - Responder does NOT chat_ack — instead posts `discussion_type: escalation` reply with reasoning
-   - host-auto promotes the thread to a top-of-dashboard "needs Lucas" panel
-   - Sticky until Lucas chat_acks it himself
+1. **Delete `relay/src/`, `relay/tests/`, `relay/Dockerfile`, `relay/pyproject.toml`, `relay/uv.lock`, `relay/responders.json`, `relay/examples/`, `relay/README.md`.**
+2. **Move plan-history docs** (`HCF_PLAN_BRIEF.md`, `HCF_PLAN_BRIEF.v0.3.0.md`, `HCF_PLAN_BRIEF.v0.4.0-original.md`) from `relay/` to a new `docs/plan-history/`. After move, `relay/` no longer exists.
+3. **Remove the `relay` service** from `docker-compose.yml`. No more `--profile relay`. Two services: `server` + `mcp`.
+4. **Audit `server/`, `mcp/`, `commands/`, `agents/`, `docs/`** for references to the old "responder/broadcaster/archiver daemon" pattern. Where they appear in user-facing docs, replace with the new "claudeclaw + chatroom" pattern.
 
-8. **SessionStart "while you were away" recall** — when Lucas's host session starts:
-   - Existing graphiti recall fires (already shipped)
-   - **Additional**: queries the chatroom for all open threads where the latest message is `discussion_type: escalation` OR `postmortem` from the last 24h
-   - Surfaces them as a compact list: "3 PRs ready for review, 2 questions waiting, 1 escalation"
-   - Lives in a new `commands/chat-while-away.md` slash command + invoked from the SessionStart pointer in plugin config
+### Phase B — Verify the coordination-layer keeps work
 
-9. **Dashboard escalation panel** — top of `/` view shows:
-   - Open escalations (count + jump-to)
-   - Open PR-postmortems waiting for Lucas (count + jump-to)
-   - Open CLAIMs in progress (count, with elapsed time)
-   - Existing thread table below
+5. **Run full server + MCP test suites** (`uv run pytest` in each). Expect 134 server + 49 mcp = 183 tests pass.
+6. **Smoke-test all v0.4.0 server endpoints**: multi-recipient POST, discussion_type round-trip, chat_claim conflict path (409 on race), chat_ask_peer graphiti-first short-circuit, `/while-away` slash command, dashboard escalation panel.
+7. **Verify the v0.4.0 schema migration is non-destructive**: v0.4.0 only ADDED columns (`recipients` table, `claimed_by`/`claimed_at`/`claim_scope`/`discussion_type` on threads). A v0.3.0 client reading a v0.4.0 DB should still work for the v0.3.0 subset. Verify via a quick read-only smoke test.
 
-### Theme E — Server schema extensions
+### Phase C — Add claudeclaw integration recipe (configuration + docs, no new code)
 
-10. **Multi-recipient threads** — current schema: `to_participant TEXT`. v0.4.0: keep that column for the **primary** recipient (back-compat), add new table `thread_recipients(thread_id, participant_id)` for additional recipients. List/read views accept any recipient as a participant.
-11. **Claim state** — new columns on `threads`: `claimed_by TEXT`, `claimed_at TIMESTAMP`, `claim_scope TEXT`
-12. **Discussion type** — new column on `threads`: `discussion_type TEXT NULL`
-13. **Migration script** — `server/src/pb_chatroom/store/migrations/v0_4_0.sql`; applied on startup if `schema_version < 4`
-14. **MCP tool updates** — `chat_send` accepts optional `discussion_type`; new `chat_claim` tool (`thread_id`, `scope`); `chat_list_threads` returns `claimed_by` + `discussion_type`
+8. **Create `docs/external-executors.md`** — design rationale + recommended pairings:
+   - **claudeclaw** for Slack/Discord/Telegram/voice + cron/heartbeat (RECOMMENDED)
+   - **claude-code-scheduler** (501★) for cron-only deployments
+   - **plain `claude --print` in a shell while-loop** for minimal deployments
+   - Bridge contract: external executor polls `GET /api/threads?to=<my-id>&status=open` and posts replies via `POST /api/threads/<id>/messages` with `X-PB-Chatroom-Participant: <my-id>` header
+9. **Create `docs/claudeclaw-integration.md`** — step-by-step recipe for the cron/heartbeat-driven path:
+   - Install claudeclaw on the host or per-DDEV-container
+   - Configure heartbeat with cwd pointing at a workspace that has the pb-chatroom MCP server mounted in its `.mcp.json`
+   - Sample `claudeclaw settings.json` snippet (provided below as `examples/claudeclaw-host-auto.json`)
+   - Sample heartbeat system-prompt addendum that teaches Claude the chatroom protocol (CLAIM format, escalation triggers, discussion_type usage, graphiti-first ask-peer pattern) (provided below as `examples/claudeclaw-system-prompt.md`)
+   - Operator opt-in checklist: how to start with one identity (`host-auto`) and add more as confidence grows
+   - **Defer Slack-bot setup** to a "v0.5.0 — Slack ingress" section with a placeholder ("test once local Linux access restored").
+10. **Create `examples/claudeclaw-host-auto.json`** — a working claudeclaw settings.json that:
+    - Defines heartbeat every 5 minutes during 08:00–19:00 local
+    - Wires the chatroom MCP into the spawned Claude session
+    - Caps budget (max 20 invocations/hour, 100/day)
+    - Enables GLM fallback for cost protection
+    - Has `allowedUserIds` empty (post-v1.0.26 = block-everyone default; Slack ingress requires explicit opt-in later)
+11. **Create `examples/claudeclaw-system-prompt.md`** — the system-prompt addendum that teaches a freshly-spawned Claude:
+    - Its identity (e.g. `host-auto` or `container-pvcpipesupplies-auto`)
+    - To call `chat_list_threads` first thing
+    - The CLAIM protocol (60s window, scope-line)
+    - The 11-rule escalation set (must escalate, not auto-fix)
+    - Graphiti-first ask-peer ordering
+    - To respond with `chat_send` for in-progress and `chat_ack` for done
 
-### Theme F — Identity validator + deprecation path
+### Phase D — Document the operator setup
 
-15. **Startup validator** — on relay startup, scan `responders.json` and `broadcasters.json` for any identity not matching the canonical pattern. Fail loud at startup if found (refuse to start). Special case: `host-agent` produces a deprecation warning naming the migration target (`host` or `host-auto`).
-16. **Dashboard soft-warning row** — if any thread message in the last 7 days used `host-agent`, dashboard shows a single info row: *"Deprecated identity 'host-agent' in use — migrate to 'host' or 'host-auto'."*
+12. **Update `README.md` Status / Roadmap section**:
+    - v0.4.0 row: coordination layer + claudeclaw recipe
+    - v0.5.0 row: Slack ingress (deferred, pending Lucas's local access fix); identity registry (per LCD bug `207ca92a` — `chat_list_participants` + `/api/participants` endpoint)
+    - Drop the "Subagent tool access" v0.4.0 line (shipped in v0.1.x — already removed once, restore if regressed)
+13. **Update `docs/agent-to-agent.md`** to reflect that the patterns described are PROTOCOL only (claudeclaw or another executor does the actual triggering).
+14. **Add a "Quick Start with claudeclaw" section to `README.md`** — 5 lines pointing at `docs/claudeclaw-integration.md`.
 
-### Theme G — Tests (TDD)
+### Phase E — Release prep
 
-17. **Schema migration test** — verify v0_3 → v0_4 migration runs cleanly on a populated DB; back-compat verified
-18. **CLAIM race test** — two simulated agents post CLAIM within 100ms; assert exactly one wins, other gets 409
-19. **Multi-recipient delivery test** — thread with 3 recipients; each `to=<X>` query returns it; ack by any one closes for that recipient (but stays open for others)
-20. **Escalation trigger unit tests** — fixtures for each escalation rule; verify the responder takes the escalation path
-21. **Graphiti-first ask test** — mock graphiti returns relevant facts → `chat_ask_peer` short-circuits; mock returns nothing → thread is created
-22. **E2E integration test** — full stack with `--profile relay`, simulate a GH ticket, watch host-auto announce, container-X-auto CLAIM, container-X-auto post postmortem, archiver write graphiti. Skip-gated like v0.3.0's E2E test (`--run-e2e`) per integration-gap discipline.
+15. **Bump versions to `0.4.0`** in `.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`. (`relay/pyproject.toml` is gone after Phase A.)
+16. **Update `CHANGELOG.md`** (create if missing) — list v0.4.0 features actually shipping + the relay-rip rationale + the claudeclaw integration path.
+17. **Stage a merge commit to `main`** from `feature/agent-coordination-v0-4-0`. Tag `v0.4.0`. **Do NOT push.** Lucas pushes after manual review.
 
-### Theme H — Documentation
+## Integration acceptance criteria — must be true at end of plan
 
-23. **Update `relay/README.md`** — new sections: identity convention pin, claim protocol, discussion types, escalation set, ask-peer pattern
-24. **Update top-level `README.md`** — v0.4.0 milestone pointer; deprecation note for `host-agent`
-25. **`docs/agent-to-agent.md`** — concrete examples of each pattern (ticket pickup turn-by-turn, debate turn-by-turn, escalation turn-by-turn) so a fresh container Claude reading the plugin can understand the protocol without inferring from code
+- `docker compose up -d` brings up 2 healthy services (server + mcp); no `relay` service, no `--profile relay` flag works (the profile is gone, not just disabled).
+- Running the `examples/claudeclaw-host-auto.json` config against a real claudeclaw install on the host produces a heartbeat-driven Claude invocation that successfully calls `chat_list_threads` and posts at least one valid reply to an existing inbox thread. (This is the v0.5.0 candidate — install + manual verification is the operator's job, but the brief includes a smoke checklist.)
+- All v0.4.0 server tests stay green.
+- No references to "responder" / "broadcaster" / "archiver" daemon code anywhere in the repo except in `docs/plan-history/` (preserved as history).
+- README + docs make it obvious to a new operator that pb-chatroom is **protocol + storage**, and the executor is **operator-chosen** (with claudeclaw as the recommended default).
 
-## Non-goals (out of scope for v0.4.0)
+## What this brief explicitly does NOT do
 
-- Full reputation system (which agents have a track record of good claims) — defer to v0.5.0 if needed
-- Cross-fleet agent reasoning (an agent in PVC reading LCD's CLAUDE.md to advise) — read-only graphiti excerpts are the v0.4.0 substitute
-- Streaming claim deadlines (slack-style countdown) — fixed 60s window is enough
-- Web UI for editing escalation rules / responder config — operators edit JSON + restart relay
+- Does NOT write custom Python/TypeScript bridge code. The integration is **claudeclaw config + system prompt + chatroom MCP**, nothing more.
+- Does NOT install claudeclaw automatically (operator runs `claude plugin install claudeclaw@claudeclaw` themselves per their README).
+- Does NOT validate Slack ingress (deferred to v0.5.0, blocked on local access).
+- Does NOT fix the 3 confirmed relay bugs (the relay is being deleted, not fixed).
+- Does NOT touch the existing chatroom production DB at `data/chatroom.db` (already migrated by the test session; the migration is the keeper).
+- Does NOT add the identity-registry endpoint LCD requested (thread `207ca92a`) — that's v0.5.0 scope, not v0.4.0.
 
 ## Constraints / hard rules
 
-- **Back-compat**: existing v0.3.0 responder configs MUST keep working with no JSON edits. `discussion_type`, `multi_recipient`, `claim_*` all opt-in.
-- **No auto-merge**: even with a CLAIM and a PR, the agent NEVER merges. The PR sits awaiting Lucas. Postmortem thread is the signal.
-- **Idempotent claims**: if the same agent CLAIMs the same ticket twice (network retry, restart), server returns `200 already claimed by you` not 409.
-- **Single broadcaster owner**: any given ticket is announced ONCE by `host-auto`; cross-host federation is out of scope (single workstation).
-- **Graphiti group_id scoping**: cross-project advice is read-only — agent reading LCD's group does NOT write back to it. Writes always go to the agent's own group.
-- **Escalation cannot be auto-resolved**: once a thread is `discussion_type: escalation`, only a human `chat_ack` closes it. Even if conditions later change, the relay does not unsubscribe.
-- **Dry-run end-to-end testable**: `--dry-run --pattern ticket_pickup` simulates the full flow without actually doing gh calls or claude --print invocations.
+- **No new feature work in the chatroom server itself.** Server is feature-complete for v0.4.0 at `baa4801`.
+- **Server + MCP tests must stay green throughout.**
+- **No HCF post-implementation pipeline on relay code.** It's being deleted.
+- **No version bump above 0.4.0.** This is the same v0.4.0 release, reshaped.
+- **Preserve git history of `baa4801`.** Don't squash. Removal is a new commit on top.
+- **Examples must be REAL working configs**, not pseudo-code. Operator must be able to copy `examples/claudeclaw-host-auto.json` into their claudeclaw install and have it work (modulo their own MCP URL).
 
 ## Hand-off to HCF
 
-Once this brief is ready, run from `~/claude-plugins-central/seed/marketplaces/pb-chatroom/`:
+Run from `~/claude-plugins-central/seed/marketplaces/pb-chatroom/`:
 
 ```
 /hcf:plan-create
 ```
 
-Use the contents of this file as the plan-create input. HCF will produce a `_plan.md` with the task breakdown. Review, then `/hcf:plan-orchestrate`.
+Use this file as plan-create input. HCF will produce a `_plan.md` with the task breakdown (probably 10–14 tasks). Review, then `/hcf:plan-orchestrate`.
 
-Per `feedback_hcf_build_integration_gaps.md` — task #22 (the end-to-end docker-compose integration test) is the integration-gap guard. Make sure it's explicitly carved out in the plan and that an HCF worker runs it before plan-end, not just produces it.
+Per `feedback_hcf_build_integration_gaps.md`: the integration-gap discipline still applies — but the surface is small. One integration test: `docker compose up -d` → curl `/healthz` on server + mcp; both 200 within 60s. Plus a doc-acceptance check: `docs/claudeclaw-integration.md` includes a literal `examples/claudeclaw-host-auto.json` reference + a copy-pasteable cron snippet.
 
-Per `feedback_hcf_plan_orchestrate_overlay.md` — the wrapper is retired. `gitnexus-reviewer` is in `pipeline.md` post-implementation slot; runs over the whole batch's diff at plan-end.
+Per `feedback_hcf_plan_orchestrate_overlay.md`: `/hcf:plan-orchestrate` runs native; `gitnexus-reviewer` is in `pipeline.md`'s `post-implementation` slot.
+
+## Reference — what's in v0.4.0 final (after this brief executes)
+
+| Component | State |
+|---|---|
+| `server/` | All v0.4.0 work intact |
+| `mcp/` | All v0.4.0 tools |
+| `commands/` | All v0.4.0 slash commands |
+| `agents/` | chat-archive agent (unchanged) |
+| `hooks/` | UserPromptSubmit inbox hook (unchanged) |
+| `docs/` | agent-to-agent.md, external-executors.md (new), claudeclaw-integration.md (new), plan-history/ (archived briefs) |
+| `examples/` | claudeclaw-host-auto.json (new), claudeclaw-system-prompt.md (new) |
+| `relay/` | **DELETED** |
+| `docker-compose.yml` | 2 services: server + mcp |
+| `README.md` | Reflects coordination + claudeclaw recipe; v0.5.0 = Slack ingress + identity registry |
+| `CHANGELOG.md` | New file documenting v0.4.0 reshape |
