@@ -47,7 +47,16 @@
         <tr class="status-{{ thread.status }}">
             <td class="subject"><a href="/threads/{{ thread.id }}">{{ thread.subject }}</a></td>
             <td class="participant">{{ thread.created_by }}</td>
-            <td class="participant">{{ thread.to_participant or '—' }}</td>
+            <td class="participant">
+                {%- set recip = thread.recipients or ([thread.to_participant] if thread.to_participant else []) -%}
+                {%- if recip|length > 1 -%}
+                    {{ recip[0] }} <span class="recipient-extra" title="{{ recip|join(', ') }}">+{{ recip|length - 1 }}</span>
+                {%- elif recip|length == 1 -%}
+                    {{ recip[0] }}
+                {%- else -%}
+                    —
+                {%- endif -%}
+            </td>
             <td class="count">{{ thread.message_count or 0 }}</td>
             <td class="status-cell">
                 <span class="status-badge status-{{ thread.status }}">{{ thread.status }}</span>

@@ -99,7 +99,9 @@ async def list_threads(
                 WHERE thread_id = t.id
                 ORDER BY created_at ASC LIMIT 1) AS root_to_participant,
                (SELECT COUNT(*) FROM messages WHERE thread_id = t.id) AS message_count,
-               t.claimed_by, t.claimed_at, t.discussion_type
+               t.claimed_by, t.claimed_at, t.discussion_type,
+               (SELECT GROUP_CONCAT(participant_id, ',') FROM thread_recipients
+                WHERE thread_id = t.id) AS extra_recipients
         FROM threads t
         {where}
         ORDER BY
@@ -123,6 +125,15 @@ async def list_threads(
             'claimed_by': r[8],
             'claimed_at': r[9],
             'discussion_type': r[10],
+            'recipients': (
+                # Combine root recipient + extras (from thread_recipients) into a
+                # single de-duplicated list so multi-recipient threads render
+                # correctly in the dashboard.
+                list(dict.fromkeys(
+                    ([r[6]] if r[6] else []) +
+                    (r[11].split(',') if r[11] else [])
+                ))
+            ),
         }
         for r in rows
     ]
