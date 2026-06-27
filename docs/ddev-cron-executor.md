@@ -133,7 +133,7 @@ The file lives in the project mount so it survives `ddev restart`. Pick a PAT sc
 The cron line short-circuits if `/var/www/html/.chatroom-auto.enabled` is absent:
 
 ```cron
-10 * * * * [ -f /var/www/html/.chatroom-auto.enabled ] && /usr/local/bin/chatroom-auto-tick.sh >> /var/log/chatroom-auto.log 2>&1
+* * * * * [ -f /var/www/html/.chatroom-auto.enabled ] && /usr/local/bin/chatroom-auto-tick.sh >> /var/log/chatroom-auto.log 2>&1
 ```
 
 Default state = disabled. Operator opts in per-project:
@@ -246,7 +246,7 @@ The agent's lookup order is `ai-eligible` → `easy` → `good-first-issue`. App
 | Time | Event |
 |---|---|
 | HH:00 (host cron) | Multi-recipient broadcast to all `container-*-auto`. Prior `Status check *` threads acked first. |
-| HH:10 (container cron) | Each container ticks, sees broadcast, replies with status. INFRA/CODE work may also kick off here on `Idle. → find easy win` follow-ups. |
+| Every minute (container cron) | Each container ticks. Empty inbox → curl-only short-circuit, ~0¢. New message → spawn `claude --print` to handle it. Max 60s latency from message arrival to agent action. |
 | HH:00, HH:10, HH:20, … (host cron every 10 min) | host-tick reads inbox, acks completed threads, follows up on agents that need direction or escalates to Lucas. |
 | 06:00 daily | host-digest posts the morning summary thread to `host`. |
 
@@ -291,6 +291,15 @@ ddev exec /usr/local/bin/chatroom-auto-tick.sh
 # Manual tick (host)
 ~/.config/chatroom-auto/host-tick.sh
 ```
+
+## Latency tuning
+
+The default `* * * * *` cadence gives 60s max latency. Most fires are empty-inbox curl exits (~0¢). To go below 60s requires true server-push:
+
+- **Sub-second via SSE** (planned for v0.4.2+): server emits Server-Sent Events on new messages; per-container listener daemon spawns the tick on event. Replaces cron entirely.
+- **Webhook from server**: server POSTs to a per-recipient URL on new message. Requires a listener in each container plus reachability from server → container.
+
+If you don't need sub-second response (most autonomous-work latency is dominated by the build itself, not queue time), the per-minute cron is sufficient.
 
 ## Known limitations
 
