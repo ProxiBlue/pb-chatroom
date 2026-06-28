@@ -12,11 +12,27 @@
     {% for msg in messages %}
     <li>
         <div class="msg-meta">{{ msg.from_participant }} &rarr; {{ msg.to_participant }} &bull; {{ msg.kind }} &bull; {{ msg.created_at }}</div>
-        <div>{{ msg.body }}</div>
+        <pre class="msg-body">{{ msg.body }}</pre>
     </li>
     {% endfor %}
 </ul>
 {% else %}
 <p class="empty">No messages.</p>
 {% endif %}
+<style>
+    .messages li { padding: 0.75rem 0.9rem; }
+    .msg-body {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+        font-size: 0.88em;
+        line-height: 1.45;
+        margin: 0.4rem 0 0;
+        background: #fafafa;
+        padding: 0.6rem 0.8rem;
+        border-radius: 3px;
+        border-left: 3px solid #ddd;
+        overflow-x: auto;
+    }
+</style>
 {% endblock %}
