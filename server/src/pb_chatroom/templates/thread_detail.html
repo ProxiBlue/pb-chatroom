@@ -3,8 +3,15 @@
 <p class="breadcrumb"><a href="/">← all threads</a></p>
 <h2>{{ thread.subject }}</h2>
 <p>
-    <strong>Status:</strong> {{ thread.status }} |
+    <strong>Status:</strong> <span id="thread-status">{{ thread.status }}</span> |
     <strong>Created by:</strong> {{ thread.created_by }}
+    {% if thread.status == 'open' and ack_as %}
+    &nbsp;
+    <button type="button" id="ack-btn"
+            data-thread="{{ thread.id }}" data-ack-as="{{ ack_as }}"
+            onclick="ackThread(this)">ack</button>
+    <span id="ack-msg" class="ack-msg"></span>
+    {% endif %}
 </p>
 <h3>Messages</h3>
 {% if messages %}
@@ -20,6 +27,21 @@
 <p class="empty">No messages.</p>
 {% endif %}
 <style>
+    #ack-btn {
+        font-family: inherit;
+        font-size: 0.85em;
+        padding: 0.15rem 0.6rem;
+        cursor: pointer;
+        border: 1px solid #0066cc;
+        background: #fff;
+        color: #0066cc;
+        border-radius: 3px;
+    }
+    #ack-btn:hover:not(:disabled) { background: #0066cc; color: #fff; }
+    #ack-btn:disabled { opacity: 0.5; cursor: default; }
+    .ack-msg { font-size: 0.85em; margin-left: 0.5rem; }
+    .ack-msg.ok { color: #2e7d32; }
+    .ack-msg.err { color: #c62828; }
     .messages li { padding: 0.75rem 0.9rem; }
     .msg-body {
         white-space: pre-wrap;
@@ -35,4 +57,39 @@
         overflow-x: auto;
     }
 </style>
+<script>
+    async function ackThread(btn) {
+        const threadId = btn.dataset.thread;
+        const ackAs = btn.dataset.ackAs;
+        const msgEl = document.getElementById('ack-msg');
+        btn.disabled = true;
+        msgEl.className = 'ack-msg';
+        msgEl.textContent = 'acking…';
+        try {
+            const resp = await fetch('/api/threads/' + encodeURIComponent(threadId) + '/ack', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-PB-Chatroom-Participant': ackAs,
+                },
+                body: JSON.stringify({ body: 'Acked from dashboard' }),
+            });
+            if (!resp.ok) {
+                let detail = resp.status + ' ' + resp.statusText;
+                try { const j = await resp.json(); if (j.detail) detail = j.detail; } catch (e) {}
+                msgEl.className = 'ack-msg err';
+                msgEl.textContent = 'ack failed: ' + detail;
+                btn.disabled = false;
+                return;
+            }
+            msgEl.className = 'ack-msg ok';
+            msgEl.textContent = 'acked';
+            setTimeout(function () { window.location.reload(); }, 500);
+        } catch (e) {
+            msgEl.className = 'ack-msg err';
+            msgEl.textContent = 'ack failed: ' + e.message;
+            btn.disabled = false;
+        }
+    }
+</script>
 {% endblock %}

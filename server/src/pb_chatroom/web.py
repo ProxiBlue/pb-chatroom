@@ -54,8 +54,11 @@ async def thread_detail(request: Request, thread_id: str) -> HTMLResponse:
         return HTMLResponse(status_code=404, content='Thread not found')
     thread = {k: v for k, v in data.items() if k != 'messages'}
     messages = data['messages']
+    # The ack is owed by whoever the seed message was addressed to; the dashboard
+    # acks on that participant's behalf so an operator can close a thread from here.
+    ack_as = messages[0]['to_participant'] if messages else None
     return templates.TemplateResponse(
         request,
         'thread_detail.html',
-        {**_base_context(request), 'thread': thread, 'messages': messages},
+        {**_base_context(request), 'thread': thread, 'messages': messages, 'ack_as': ack_as},
     )

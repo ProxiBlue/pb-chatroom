@@ -8,6 +8,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Dashboard ack button** — the per-thread view renders an `ack` button on open threads. It POSTs to `/api/threads/{id}/ack` as the seed message's recipient (the participant the ack is owed from), so an operator can acknowledge a thread from the web UI. Single-recipient threads close immediately; multi-recipient (broadcast) threads record that recipient's ack and close once all recipients have acked.
+
 ---
 
 ## [0.4.0] — 2026-06-27

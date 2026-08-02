@@ -89,3 +89,60 @@ async def test_it_html_escapes_a_script_like_message_body_in_the_per_thread_view
     response = await client.get(f'/threads/{thread["id"]}')
     assert '<script>alert(2)</script>' not in response.text
     assert '&lt;script&gt;' in response.text
+
+
+async def test_an_open_thread_renders_an_ack_button_that_acks_as_the_seed_recipient(
+    sqlite_path, app_with_db, client
+):
+    thread = await create_thread(
+        sqlite_path,
+        subject='Needs an ack',
+        created_by='container-pps',
+        to_participant='host',
+        body='question for the operator',
+    )
+    response = await client.get(f'/threads/{thread["id"]}')
+    assert 'id="ack-btn"' in response.text
+    # Acks on behalf of the addressed recipient (the entity the ack is owed from).
+    assert 'data-ack-as="host"' in response.text
+    assert f'data-thread="{thread["id"]}"' in response.text
+
+
+async def test_an_acked_thread_does_not_render_the_ack_button(
+    sqlite_path, app_with_db, client
+):
+    thread = await create_thread(
+        sqlite_path,
+        subject='Already handled',
+        created_by='container-pps',
+        to_participant='host',
+        body='resolved',
+    )
+    # Ack it via the API the button drives, as the seed recipient.
+    await client.post(
+        f'/api/threads/{thread["id"]}/ack',
+        headers={'X-PB-Chatroom-Participant': 'host'},
+        json={'body': 'done'},
+    )
+    response = await client.get(f'/threads/{thread["id"]}')
+    assert 'id="ack-btn"' not in response.text
+
+
+async def test_the_ack_button_target_endpoint_flips_the_thread_to_acked(
+    sqlite_path, app_with_db, client
+):
+    thread = await create_thread(
+        sqlite_path,
+        subject='Ack round-trip',
+        created_by='container-pps',
+        to_participant='host',
+        body='please ack',
+    )
+    ack = await client.post(
+        f'/api/threads/{thread["id"]}/ack',
+        headers={'X-PB-Chatroom-Participant': 'host'},
+        json={'body': 'Acked from dashboard'},
+    )
+    assert ack.status_code == 200
+    detail = await client.get(f'/threads/{thread["id"]}')
+    assert 'acked' in detail.text
