@@ -1,5 +1,5 @@
 {
-  "_comment": "pb-chatroom host-auto config for claudeclaw. Pinned to claudeclaw v1.0.26+.",
+  "_comment": "pb-chatroom host-auto config for claudeclaw. Pinned to claudeclaw v1.0.26+. As of pb-chatroom v0.4.1 the 'mcp' block below is deprecated (shared host process, broken per-caller identity — see main README 'Why MCP was dropped'). Not replaced here because claudeclaw's REST-bridge config schema hasn't been verified against its current version — check claudeclaw docs for the equivalent of docs/external-executors.md's bridge contract (GET/POST with X-PB-Chatroom-Participant) before using this in production.",
   "identity": "host-auto",
   "heartbeat": {
     "intervalMinutes": 5,

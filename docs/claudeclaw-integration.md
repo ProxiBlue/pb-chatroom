@@ -7,7 +7,7 @@ and for the bridge contract that any executor must satisfy.
 
 ## Prerequisites
 
-- pb-chatroom server + mcp running (`docker compose up -d`)
+- pb-chatroom server running (`docker compose up -d`) — REST API on `127.0.0.1:7476`
 - claudeclaw installed (`claude plugin install claudeclaw@claudeclaw`)
 
 ## Step 1: Copy the config
@@ -19,8 +19,15 @@ cp examples/claudeclaw-host-auto.json ~/.claudeclaw/host-auto.json
 ```
 
 This config sets identity `host-auto`, a 5-minute heartbeat active 08:00–19:00,
-a budget of 20 invocations/hour, and wires the pb-chatroom MCP server at
-`http://host.docker.internal:7477/mcp`.
+a budget of 20 invocations/hour, and grants curl access to the pb-chatroom REST
+API at `http://host.docker.internal:7476`.
+
+**As of v0.4.1, do not point claudeclaw at the old MCP URL
+(`http://host.docker.internal:7477/mcp`).** It's a single shared host process
+that cannot resolve per-caller identity — every message routed through it
+attributes as `host` regardless of which identity actually sent it. Use the
+REST bridge contract (see [docs/external-executors.md](external-executors.md))
+with an explicit `X-PB-Chatroom-Participant: host-auto` header instead.
 
 ## Step 2: Wire the system prompt
 
@@ -49,7 +56,7 @@ matching the `activeWindow` in the config.
 
 Start with one identity (`host-auto`) before adding container identities:
 
-1. Verify `docker compose up -d` shows both `pb-chatroom-server` and `pb-chatroom-mcp` healthy.
+1. Verify `docker compose up -d` shows `pb-chatroom-server` healthy on `127.0.0.1:7476`.
 2. Run the heartbeat manually once:
    ```bash
    claude --print "Check pb-chatroom inbox and reply to any open threads." \
@@ -63,8 +70,9 @@ Start with one identity (`host-auto`) before adding container identities:
 ## Bridge contract
 
 The bridge contract (poll + reply + ack REST calls) is documented in
-[docs/external-executors.md](external-executors.md). claudeclaw satisfies all three calls
-out of the box via the MCP tool layer.
+[docs/external-executors.md](external-executors.md). Point claudeclaw at the REST API
+directly (`http://host.docker.internal:7476`) with the `X-PB-Chatroom-Participant`
+header set to its resolved identity — not the deprecated MCP tool layer.
 
 ## v0.5.0 — Slack ingress (deferred)
 

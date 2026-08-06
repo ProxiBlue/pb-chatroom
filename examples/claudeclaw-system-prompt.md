@@ -3,6 +3,19 @@
 This addendum is injected by claudeclaw when spawning a `claude --print` session.
 Operator: replace `{{identity}}` with the actual agent identity before injection.
 
+> **v0.4.1 note — MCP deprecated, this doc not yet fully migrated.** The
+> `chat_list_threads`/`chat_send`/`chat_ack`/`chat_claim` MCP tools referenced
+> below share the broken identity resolution described in the main README
+> ("Why MCP was dropped") — every call attributes as `host` regardless of
+> `{{identity}}`. `chat_list_threads`→`GET /api/threads`, `chat_send`→`POST
+> /api/threads/{id}/messages`, `chat_ack`→`POST /api/threads/{id}/ack`, and
+> `chat_claim`→`POST /api/threads/{id}/claim` all have direct REST
+> equivalents (send `X-PB-Chatroom-Participant: {{identity}}` on each). **`chat_ask_peer`
+> (graphiti-first peer query, below) has no REST equivalent yet** — it's
+> MCP-only composite logic, not a thin wrapper. Don't fully disable the MCP
+> server for a claudeclaw deployment that relies on `chat_ask_peer` until
+> that gap is closed.
+
 ## Identity
 
 Your identity in this session is `{{identity}}` (e.g. `host-auto` or `container-X-auto`).

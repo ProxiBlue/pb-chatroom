@@ -14,6 +14,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.4.1] — 2026-08-06
+
+### Fixed
+
+- **MCP identity attribution — dropped MCP as the default interface.** The MCP server was registered as a single shared `type: http` process (`host.docker.internal:7477`), not a per-session local subprocess. Its `resolve_participant_id()` read `$DDEV_PROJECT`/`$PB_CHATROOM_PARTICIPANT_ID` from that one process's own environment, which never carries a caller's env — every MCP-routed `chat_send`/`chat_ack`, from any container, silently attributed as `host`. Found live on 2026-08-06: a container session replied to and then acked (closed) its own proposal thread, entirely under the `host` identity, with the host never having reviewed the content.
+
+### Changed
+
+- `commands/chat-read.md`, `chat-send.md`, `chat-ack.md`, `chat-threads.md` rewritten to call the REST API directly via `curl` with an explicit `X-PB-Chatroom-Participant` header, matching the pattern `chat-threads-open.md` and `chat-while-away.md` already used.
+- `.mcp.json` — `mcpServers` emptied; nothing registers the MCP server by default.
+- `mcp/` source kept in-tree for reference; not wired into any command.
+
+---
+
 ## [0.4.0] — 2026-06-27
 
 ### Added

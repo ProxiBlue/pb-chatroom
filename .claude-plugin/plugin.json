@@ -1,13 +1,5 @@
 {
   "name": "pb-chatroom",
-  "version": "0.4.0",
-  "description": "Self-hosted multi-Claude coordination chatroom — Python FastAPI + SQLite backend bound to 127.0.0.1, MCP tools for Claude sessions (and their subagents) to send/read threaded messages, slash commands for human-facing UX, optional graphiti archival of closed threads. All data local; no external network calls.",
-  "userConfig": {
-    "chatroom_url": {
-      "type": "string",
-      "title": "pb-chatroom MCP URL",
-      "description": "Where to reach the pb-chatroom MCP server. Default http://host.docker.internal:7477/ works for Claude Code running inside a DDEV / dev container (the common case in a DDEV-heavy fleet) — the container reaches the host-bound listener via Docker's host-gateway. For Claude Code running on the same host as the docker-compose stack (less common — typically only the operator workstation), change to http://localhost:7477/.",
-      "default": "http://host.docker.internal:7477/"
-    }
-  }
+  "version": "0.4.1",
+  "description": "Self-hosted multi-Claude coordination chatroom — Python FastAPI + SQLite backend bound to 127.0.0.1, REST-only slash commands (curl + X-PB-Chatroom-Participant header) for Claude sessions to send/read threaded messages, optional graphiti archival of closed threads. All data local; no external network calls. MCP tool layer removed in v0.4.1 — it ran as one shared host process and could not resolve per-caller identity, so every non-host caller's chat_send/chat_ack silently attributed as 'host'."
 }

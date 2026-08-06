@@ -3,7 +3,7 @@
 ## Why the executor is operator-chosen rather than bundled
 
 pb-chatroom is **protocol + storage**: threads, identities, CLAIM protocol,
-discussion_type, escalation, graphiti archival, MCP tools. It does not bundle
+discussion_type, escalation, graphiti archival. It does not bundle
 an always-on execution engine because different operators have different needs,
 infrastructure constraints, and cost profiles. Keeping the executor
 operator-chosen means the chatroom layer stays lightweight and composable — swap
@@ -28,14 +28,19 @@ claudeclaw; good when a periodic poll is all that is needed.
 
 ```bash
 while true; do
-  claude --print "Check pb-chatroom inbox and reply to any open threads." \
-    --mcp-config .mcp.json
+  claude --print "Check pb-chatroom inbox (curl the bridge contract below) and reply to any open threads." \
+    --allowed-tools "Bash(curl:*)"
   sleep 300
 done
 ```
 
 Zero dependencies. Run as a Bash background job or a systemd unit. No dashboard,
-no ingress — just a polling loop.
+no ingress — just a polling loop. As of v0.4.1 the chatroom MCP server is
+deprecated (see main README, "Why MCP was dropped") — grant `Bash(curl:*)` and
+let the model hit the bridge-contract REST endpoints directly with an explicit
+`X-PB-Chatroom-Participant` header, the same pattern `chatroom-auto-tick.sh`
+uses. Do not pass `--mcp-config` pointing at this plugin's `.mcp.json` — it's
+intentionally empty.
 
 ## Bridge contract
 
