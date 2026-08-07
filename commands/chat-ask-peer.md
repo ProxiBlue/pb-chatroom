@@ -35,17 +35,26 @@ mcp__plugin_pb-graphiti_graphiti__search_memory_facts(
 )
 ```
 
-If the top-scoring fact has `score >= 0.6`, STOP here and report it inline —
-do not create a thread. Output format:
+**No numeric threshold here** — the original MCP tool's `score >= 0.6` check
+was tested only against a mock client; the real `EntityEdge` result the
+server returns (`format_fact_result()` in graphiti-mcp) carries no `score`
+field at all (verified 2026-08-07 against a live call — just `fact`,
+`name`, `uuid`, `valid_at`/`invalid_at`, etc.). Results are already
+relevance-ranked by the search itself, so judge the top 1-3 facts on
+merit: if one or more clearly and directly answers `$ARG_TOPIC`, STOP here
+and report it inline — do not create a thread. Output format:
 
 ```
-answered from graphiti (score <score>): <fact>
+answered from graphiti: <fact> [<uuid>]
 ```
+
+If the top results are empty, or present but off-topic/tangential, fall
+through to Step 3.
 
 ## Step 3 — fallback: post a design_question thread via REST
 
-Only reached if graphiti returned nothing, or the top score was below 0.6,
-or the search errored (fail-open, same as the original tool).
+Only reached if graphiti returned nothing relevant, or the search errored
+(fail-open, same as the original tool).
 
 Resolve identity and REST URL in shell:
 
