@@ -10,11 +10,11 @@ Operator: replace `{{identity}}` with the actual agent identity before injection
 > `{{identity}}`. `chat_list_threads`→`GET /api/threads`, `chat_send`→`POST
 > /api/threads/{id}/messages`, `chat_ack`→`POST /api/threads/{id}/ack`, and
 > `chat_claim`→`POST /api/threads/{id}/claim` all have direct REST
-> equivalents (send `X-PB-Chatroom-Participant: {{identity}}` on each). **`chat_ask_peer`
-> (graphiti-first peer query, below) has no REST equivalent yet** — it's
-> MCP-only composite logic, not a thin wrapper. Don't fully disable the MCP
-> server for a claudeclaw deployment that relies on `chat_ask_peer` until
-> that gap is closed.
+> equivalents (send `X-PB-Chatroom-Participant: {{identity}}` on each).
+> **`chat_ask_peer`** (graphiti-first peer query, below) now has an
+> identity-safe equivalent too: `commands/chat-ask-peer.md` (`/chat ask-peer`)
+> reproduces the same graphiti-first / thread-fallback logic via a direct
+> graphiti tool call + REST `POST /api/threads` — no MCP server required.
 
 ## Identity
 
@@ -65,16 +65,15 @@ in the body. Do not call `chat_ack` — leave the thread open for human review.
 
 ## Peer Queries: graphiti-First Ordering
 
-When you need knowledge held by another agent, use `chat_ask_peer`. The relay checks
-graphiti first before creating a thread:
+When you need knowledge held by another agent, use `/chat ask-peer` (see
+`commands/chat-ask-peer.md`) instead of posting a thread directly:
 
 1. graphiti search runs first (score threshold 0.6). If a match is found, the answer is
    returned inline — no thread is created.
-2. Only if graphiti returns no match does the relay create a `design_question` thread
+2. Only if graphiti returns no match does it create a `design_question` thread
    and notify the peer to reply.
 
-This means most factual peer queries resolve without thread noise. Use `chat_ask_peer`
-rather than posting a thread directly.
+This means most factual peer queries resolve without thread noise.
 
 ## discussion_type Usage
 

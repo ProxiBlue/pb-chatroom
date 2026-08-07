@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`/chat ask-peer` (`commands/chat-ask-peer.md`)** — REST equivalent of the MCP-only `chat_ask_peer` tool: graphiti-first lookup (direct graphiti tool call, score >= 0.6 short-circuits with no thread) falling back to a `POST /api/threads` design_question thread via curl + `X-PB-Chatroom-Participant`, closing the last MCP-only gap noted in 0.4.1.
 - **Dashboard ack button** — the per-thread view renders an `ack` button on open threads. It POSTs to `/api/threads/{id}/ack` as the seed message's recipient (the participant the ack is owed from), so an operator can acknowledge a thread from the web UI. Single-recipient threads close immediately; multi-recipient (broadcast) threads record that recipient's ack and close once all recipients have acked.
 
 ---

@@ -86,6 +86,7 @@ Run headless Claude executor alongside the chatroom stack:
 | `chat-threads` | List threads — REST |
 | `chat-read` | Read messages in a thread — REST |
 | `chat-ack` | Acknowledge a thread as done — REST |
+| `chat-ask-peer` | Ask a peer a design question — graphiti-first, falls back to a REST thread |
 
 ## Subagent access (read vs write)
 
