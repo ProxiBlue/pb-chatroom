@@ -8,7 +8,7 @@ Open a new root chat thread by calling `POST /api/threads` directly.
 Resolve participant identity in shell:
 
 ```sh
-PARTICIPANT="${PB_CHATROOM_PARTICIPANT_ID:-${DDEV_PROJECT:+container-${DDEV_PROJECT}}}"
+PARTICIPANT="${PB_CHATROOM_PARTICIPANT_ID:-${DDEV_PROJECT:+container-$(echo "$DDEV_PROJECT" | tr 'A-Z' 'a-z')}}"
 PARTICIPANT="${PARTICIPANT:-host}"
 ```
 

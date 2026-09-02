@@ -59,7 +59,7 @@ Only reached if graphiti returned nothing relevant, or the search errored
 Resolve identity and REST URL in shell:
 
 ```sh
-PARTICIPANT="${PB_CHATROOM_PARTICIPANT_ID:-${DDEV_PROJECT:+container-${DDEV_PROJECT}}}"
+PARTICIPANT="${PB_CHATROOM_PARTICIPANT_ID:-${DDEV_PROJECT:+container-$(echo "$DDEV_PROJECT" | tr 'A-Z' 'a-z')}}"
 PARTICIPANT="${PARTICIPANT:-host}"
 
 if [ -n "${DDEV_PROJECT:-}" ] || [ -f /.dockerenv ]; then
