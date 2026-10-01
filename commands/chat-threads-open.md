@@ -26,13 +26,18 @@ fi
 PB_CHATROOM_REST_URL="http://${PB_CHATROOM_REST_HOST}:7476"
 ```
 
-Then send the request:
+Then send the request. Build the JSON body with `jq -n`, not hand-built string
+interpolation — a hand-built `"{\"to\": \"$ARG_TO\", ...}"` string breaks (HTTP
+422) the moment the subject or body contains a backtick, a double quote, or a
+newline:
 
 ```sh
-curl -s -X POST "${PB_CHATROOM_REST_URL}/api/threads" \
-  -H "Content-Type: application/json" \
-  -H "X-PB-Chatroom-Participant: ${PARTICIPANT}" \
-  -d "{\"to\": \"$ARG_TO\", \"subject\": \"$ARG_SUBJECT\", \"body\": \"$ARG_BODY\"}"
+jq -n --arg to "$ARG_TO" --arg subject "$ARG_SUBJECT" --arg body "$ARG_BODY" \
+  '{to: $to, subject: $subject, body: $body}' \
+  | curl -s -X POST "${PB_CHATROOM_REST_URL}/api/threads" \
+      -H "Content-Type: application/json" \
+      -H "X-PB-Chatroom-Participant: ${PARTICIPANT}" \
+      --data-binary @-
 ```
 
 Output the result as: `thread opened: <id>`. If the curl exits non-zero,
